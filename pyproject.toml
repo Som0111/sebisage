@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sebisage"
+version = "0.1.0"
+description = "Agentic RAG over SEBI regulations with clause-level citations."
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "langchain",
+    "langchain-core",
+    "langchain-community",
+    "langchain-google-genai",
+    "langgraph",
+    "chromadb",
+    "sentence-transformers",
+    "rank-bm25",
+    "pymupdf",
+    "ddgs",
+    "fastapi",
+    "uvicorn",
+    "sse-starlette",
+    "langfuse",
+    "streamlit",
+    "python-dotenv",
+    "httpx",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100

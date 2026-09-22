@@ -1,0 +1,25 @@
+Metadata-Version: 2.4
+Name: sebisage
+Version: 0.1.0
+Summary: Agentic RAG over SEBI regulations with clause-level citations.
+Requires-Python: <3.12,>=3.11
+Requires-Dist: langchain
+Requires-Dist: langchain-core
+Requires-Dist: langchain-community
+Requires-Dist: langchain-google-genai
+Requires-Dist: langgraph
+Requires-Dist: chromadb
+Requires-Dist: sentence-transformers
+Requires-Dist: rank-bm25
+Requires-Dist: pymupdf
+Requires-Dist: ddgs
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: sse-starlette
+Requires-Dist: langfuse
+Requires-Dist: streamlit
+Requires-Dist: python-dotenv
+Requires-Dist: httpx
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: ruff; extra == "dev"

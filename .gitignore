@@ -1,0 +1,8 @@
+.env
+data/raw/
+storage/
+private/
+__pycache__/
+*.pyc
+.venv/
+.cache/
