@@ -1,0 +1,19 @@
+{
+  "structured": {
+    "chunk_count": 1900,
+    "dense_build_seconds": 390.65,
+    "dense_indexed_count": 1900,
+    "bm25_build_seconds": 0.14,
+    "bm25_indexed_count": 1900,
+    "bm25_pickle_bytes": 1010282
+  },
+  "fixed": {
+    "chunk_count": 307,
+    "dense_build_seconds": 129.85,
+    "dense_indexed_count": 307,
+    "bm25_build_seconds": 0.13,
+    "bm25_indexed_count": 307,
+    "bm25_pickle_bytes": 736736
+  },
+  "chroma_dir_bytes": 26866028
+}

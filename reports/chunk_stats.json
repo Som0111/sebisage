@@ -1,9 +1,9 @@
 {
   "files": {
     "lodr_2015.pdf": {
-      "count": 1064,
-      "mean_tokens": 67.3,
-      "median_tokens": 41.0,
+      "count": 1063,
+      "mean_tokens": 67.4,
+      "median_tokens": 41,
       "max_tokens": 402,
       "pct_with_reg_no": 100.0
     },
@@ -37,10 +37,10 @@
     }
   },
   "totals": {
-    "structured_chunk_count": 1901,
+    "structured_chunk_count": 1900,
     "fixed_chunk_count": 307,
     "mean_tokens": 72.2,
-    "median_tokens": 45,
+    "median_tokens": 45.0,
     "max_tokens": 402,
     "pct_with_reg_no": 100.0
   }

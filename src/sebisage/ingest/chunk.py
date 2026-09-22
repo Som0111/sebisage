@@ -183,7 +183,15 @@ def structured_chunks(pages: list[Page], source_file: str, regulation: str) -> l
     full_text, offsets = _build_full_text(pages)
 
     chapters = [(m.start(), m.group(1)) for m in _CHAPTER_RE.finditer(full_text)]
-    schedule_headers = [(m.start(), m.end(), m.group(1)) for m in _SCHEDULE_RE.finditer(full_text)]
+    # Some schedules are split across multiple headings with the same label
+    # (e.g. "SCHEDULE IV" Part A and Part B each restate the heading) -
+    # merge consecutive same-label headings into one span so id generation
+    # (which starts a fresh counter per span) can't collide.
+    schedule_headers = []
+    for m in _SCHEDULE_RE.finditer(full_text):
+        if schedule_headers and schedule_headers[-1][2] == m.group(1):
+            continue
+        schedule_headers.append((m.start(), m.end(), m.group(1)))
     schedule_start = schedule_headers[0][0] if schedule_headers else len(full_text)
 
     reg_matches = _monotonic_matches(_REG_RE, full_text, end=schedule_start)

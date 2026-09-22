@@ -10,7 +10,8 @@ Append-only log. Claude Code adds to this file at the end of every phase and at 
 - **Phase 0.2 done.** `.env` created (H1 confirmed by human); all 6 keys verified present via `python-dotenv` without printing values. Gemini model chosen: `gemini-flash-lite-latest` (see Decisions).
 - **Phase 0.3 done.** All 5 SEBI PDFs in `data/raw/`, verified readable with pymupdf, page counts and amendment dates logged above.
 - **Phase 0 exit gate: all items complete.** Suggested commit below — human to run `git add . && git commit && git push` (H6).
-- **Phase 1 done.** PDF parsing (`ingest/parse_pdf.py`) + structure-aware and fixed chunkers (`ingest/chunk.py`) implemented and run over all 5 PDFs. 1,901 structured chunks, 307 fixed chunks, 100% reg_no coverage (well above the 85% bar). Details and sample chunks below.
+- **Phase 1 done.** PDF parsing (`ingest/parse_pdf.py`) + structure-aware and fixed chunkers (`ingest/chunk.py`) implemented and run over all 5 PDFs. 1,900 structured chunks (one fewer than first reported, after a Phase 2 bugfix — see Phase 1 note below), 307 fixed chunks, 100% reg_no coverage (well above the 85% bar). Details and sample chunks below.
+- **Phase 2 done.** Dense (Chroma + bge-small) and BM25 indexes built for both chunkers. 1,900 + 307 chunks indexed in each. Idempotency verified by rebuilding twice and comparing counts. Details below.
 
 ---
 
@@ -54,6 +55,9 @@ Record the "last amended" date shown on each PDF in the table below once downloa
 - **2026-09-22** — Generation model: `gemini-flash-lite-latest`. Listed all models available to the provided `GEMINI_API_KEY` via the `google-genai` SDK (60 models returned — the account has broad access, including newer preview models). Chose the `-lite-` flash tier for speed/cost over `-pro`/full `-flash`, and the `-latest` alias form (not a dated snapshot) so it keeps resolving to Google's current flash-lite model without needing edits as models get deprecated. Recorded in `config.py::GEMINI_MODEL`.
 - **2026-09-22** — Regulation-boundary detection patterns (structure-aware chunker). SEBI's consolidated PDFs use a 3-level layout, each level starting its own line: regulation `"30. (1) ..."` (bare `NN.` or `NNA.`, sometimes with **no space** before the next `(`, e.g. `"22.(1)"` — seen in sast_2011.pdf), sub-regulation `"(1) ..."`, clause `"(a) ..."`. A blank line does *not* reliably precede these (varies with PDF font/spacing), so boundaries are detected at any line start and validated by requiring the (number, letter-suffix) sequence to be **strictly increasing** — this is what rejects inline cross-references like "...under regulation 23..." (never at a line start) without needing a stricter anchor. Chapters (`CHAPTER IV`) and schedules (`SCHEDULE I`) are detected the same way. Documented in the `ingest/chunk.py` module docstring.
 - **2026-09-22** — Chunk size cap. Sub-regulations/schedules over `MAX_CHUNK_TOKENS` (400) are split on clause markers `(a)`, `(b)` first, then bare numbered items `1.`, `2.` (schedules/annexed forms often use these instead of lettered clauses), and any piece still oversized after that (uneven section sizes) falls back to fixed-size word windows — guarantees no chunk exceeds ~400 tokens. Every split piece is prefixed with a `[Regulation N]` / `[Schedule N]` header so it's still identifiable out of context.
+- **2026-09-22** — Bugfix found while building the dense index (Phase 2): `chromadb.add()` rejected `chunks_structured.jsonl` with a `DuplicateIDError` on `lodr_2015.pdf:SCHEDULE_IV:*`. Cause: LODR's Schedule IV is printed as two separate "SCHEDULE IV" headings (Part A, Part B), so the chunker treated it as two schedules and both id counters restarted at 0. Fixed by merging consecutive schedule headings with the same label into one span before chunking (`ingest/chunk.py::structured_chunks`). Chunk count dropped from 1,901 to 1,900 (re-ran `scripts/build_chunks.py`); re-verified no duplicate ids across both chunk files before rebuilding the index.
+- **2026-09-22** — Dense index: `BAAI/bge-small-en-v1.5` via `sentence-transformers`, queries prefixed with the model's documented instruction (`"Represent this sentence for searching relevant passages: "`), documents unprefixed. Stored in Chroma, one persistent collection per chunker (`sebisage_structured`, `sebisage_fixed`) at `storage/chroma/`. Rebuild is delete-collection-then-recreate (not upsert), so a rebuild always exactly matches current `data/processed/` content — verified idempotent by building twice and comparing counts (1,900 / 307 both times) and BM25 pickle bytes (identical both runs).
+- **2026-09-22** — Sparse index tokenizer keeps identifiers like `"30(6)"` and `"kmp"` intact (regex `[a-z0-9()]+` on lowercased text) instead of splitting on punctuation, since legal citations depend on exact tokens BM25 would otherwise fragment.
 
 ---
 
@@ -92,7 +96,9 @@ phase-0: repo skeleton, config and data setup
 | sast_2011.pdf | 305 | 78.6 | 55 | 402 | 100.0% |
 | ia_2013.pdf | 135 | 76.4 | 45 | 402 | 100.0% |
 | ra_2014.pdf | 179 | 62.0 | 43 | 402 | 100.0% |
-| **Total** | **1,901** | **72.2** | **45** | **402** | **100.0%** |
+| **Total** | **1,900** | **72.2** | **45** | **402** | **100.0%** |
+
+(lodr_2015.pdf count updated from 1,064 to 1,063 after the Schedule IV duplicate-id fix — see Decisions.)
 
 Fixed-size baseline chunker: 307 chunks (500 words, 50 overlap) — for the Phase 3 ablation study.
 
@@ -122,4 +128,40 @@ All 5 read correctly attributed to their regulation/schedule and chapter. No gar
 **Suggested commit message:**
 ```
 phase-1: PDF parsing and structure-aware chunking
+```
+
+---
+
+## Phase 2 — Indexing (Dense + Sparse)
+
+**What was built:**
+- `index/dense.py` — embeds chunk text with `BAAI/bge-small-en-v1.5` (local, CPU), stores in a persistent Chroma collection per chunker (`sebisage_structured`, `sebisage_fixed`) at `storage/chroma/`. Queries get the model's documented instruction prefix; documents don't (asymmetric retrieval convention). Metadata stored is every `Chunk` field except `text` (text itself is Chroma's `documents` field).
+- `index/sparse.py` — BM25 (`rank_bm25`) over a custom lowercase tokenizer that keeps identifiers like `"30(6)"` and `"kmp"` intact. Persisted to `storage/bm25_{chunker}.pkl` alongside the chunk-id list (both regenerated from scratch on every build — no incremental/upsert state to go stale).
+- `scripts/build_index.py --chunker structured|fixed|all` — builds both indexes for the requested chunker(s), writes `reports/index_stats.json`.
+
+**Index stats** (`reports/index_stats.json`, from two consecutive rebuilds — see idempotency below):
+
+| Chunker | Chunks | Dense build time | BM25 build time | BM25 pickle size |
+|---|---|---|---|---|
+| structured | 1,900 | ~395s (CPU) | ~0.15s | 1,010,282 bytes |
+| fixed | 307 | ~130s (CPU) | ~0.15s | 736,736 bytes |
+
+Total `storage/chroma/` directory: ~22–27 MB (varies slightly run to run — Chroma's on-disk WAL/compaction files, not the logical content, which is verified identical).
+
+**Idempotency:** ran `build_index.py --chunker all` twice in a row. Both runs: 1,900 structured + 307 fixed chunks indexed in Chroma (`collection.count()` confirmed directly), and the BM25 `.pkl` files were byte-identical both times. Achieved by rebuilding destructively each run (delete-then-recreate the Chroma collection; BM25 pickle always overwritten from scratch), not by upserting — so a rebuild always exactly reflects current `data/processed/` content regardless of history.
+
+**Real-query smoke test** (not part of the automated tests, a sanity check against the actual roadmap example question): *"When must a listed company disclose a material event?"* against the dense index — top 3 hits were all Regulation 30 chunks (`lodr_2015.pdf:30:1-2:0`, `:30:5:0`, `:30:3-4:3`), which is exactly the regulation the roadmap's own example expects. A pure-keyword BM25 query for `"Regulation 30 disclosure"` ranked a Regulation 46 chunk first — expected for keyword-only search on a paraphrased query, and exactly the gap hybrid RRF fusion (Phase 3) exists to close.
+
+**Tests:** 19 passed total (13 from Phase 1 + 3 for `sparse` + 3 for `dense`), `ruff check .` clean. Dense tests use the real `bge-small` model (local/free, not an API call) against a tiny in-memory fixture, isolated from the production Chroma store via `tmp_path` + `monkeypatch`.
+
+### Phase 2 Exit Gate
+
+- [x] Both indexes built for both chunkers (1,900 structured + 307 fixed, in Chroma and BM25).
+- [x] Rebuild is idempotent (same counts twice, byte-identical BM25 pickles).
+- [x] Tests pass (19/19), ruff clean.
+- [ ] 🧑 H6: human runs `git add . && git commit && git push`.
+
+**Suggested commit message:**
+```
+phase-2: dense and BM25 indexes
 ```
