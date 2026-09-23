@@ -1,0 +1,248 @@
+{
+  "n_dev": 34,
+  "accuracy": 1.0,
+  "confusion_matrix": {
+    "expected=regulation|predicted=regulation": 31,
+    "expected=out_of_scope|predicted=out_of_scope": 3
+  },
+  "per_question": [
+    {
+      "id": "q019",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (7.85)",
+      "correct": true
+    },
+    {
+      "id": "q039",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (6.75)",
+      "correct": true
+    },
+    {
+      "id": "q035",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (7.17)",
+      "correct": true
+    },
+    {
+      "id": "q047",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "low retrieval confidence (-9.555558204650879), classifier said 'regulation'",
+      "correct": true
+    },
+    {
+      "id": "q023",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "low retrieval confidence (1.3235292434692383), classifier said 'regulation'",
+      "correct": true
+    },
+    {
+      "id": "q027",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (4.60)",
+      "correct": true
+    },
+    {
+      "id": "q034",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (6.71)",
+      "correct": true
+    },
+    {
+      "id": "q030",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (10.56)",
+      "correct": true
+    },
+    {
+      "id": "q026",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (6.72)",
+      "correct": true
+    },
+    {
+      "id": "q057",
+      "expected": "out_of_scope",
+      "predicted": "out_of_scope",
+      "reason": "low retrieval confidence (-2.6895394325256348), classifier said 'out_of_scope'",
+      "correct": true
+    },
+    {
+      "id": "q006",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (4.56)",
+      "correct": true
+    },
+    {
+      "id": "q052",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "low retrieval confidence (-3.758213996887207), classifier said 'regulation'",
+      "correct": true
+    },
+    {
+      "id": "q051",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "low retrieval confidence (-0.8135045766830444), classifier said 'regulation'",
+      "correct": true
+    },
+    {
+      "id": "q059",
+      "expected": "out_of_scope",
+      "predicted": "out_of_scope",
+      "reason": "low retrieval confidence (-4.645326137542725), classifier said 'out_of_scope'",
+      "correct": true
+    },
+    {
+      "id": "q004",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (5.77)",
+      "correct": true
+    },
+    {
+      "id": "q042",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (8.13)",
+      "correct": true
+    },
+    {
+      "id": "q049",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "low retrieval confidence (2.511796474456787), classifier said 'regulation'",
+      "correct": true
+    },
+    {
+      "id": "q021",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (7.05)",
+      "correct": true
+    },
+    {
+      "id": "q025",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (7.41)",
+      "correct": true
+    },
+    {
+      "id": "q016",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "low retrieval confidence (3.114684581756592), classifier said 'regulation'",
+      "correct": true
+    },
+    {
+      "id": "q048",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "low retrieval confidence (-2.5795397758483887), classifier said 'regulation'",
+      "correct": true
+    },
+    {
+      "id": "q029",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (9.22)",
+      "correct": true
+    },
+    {
+      "id": "q060",
+      "expected": "out_of_scope",
+      "predicted": "out_of_scope",
+      "reason": "low retrieval confidence (3.011514663696289), classifier said 'out_of_scope'",
+      "correct": true
+    },
+    {
+      "id": "q010",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (9.88)",
+      "correct": true
+    },
+    {
+      "id": "q017",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (6.77)",
+      "correct": true
+    },
+    {
+      "id": "q022",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (9.57)",
+      "correct": true
+    },
+    {
+      "id": "q007",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (7.15)",
+      "correct": true
+    },
+    {
+      "id": "q045",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (9.91)",
+      "correct": true
+    },
+    {
+      "id": "q050",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (4.42)",
+      "correct": true
+    },
+    {
+      "id": "q036",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "low retrieval confidence (3.0856711864471436), classifier said 'regulation'",
+      "correct": true
+    },
+    {
+      "id": "q031",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (9.02)",
+      "correct": true
+    },
+    {
+      "id": "q011",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (9.01)",
+      "correct": true
+    },
+    {
+      "id": "q012",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (8.40)",
+      "correct": true
+    },
+    {
+      "id": "q014",
+      "expected": "regulation",
+      "predicted": "regulation",
+      "reason": "high retrieval confidence (5.51)",
+      "correct": true
+    }
+  ]
+}

@@ -43,8 +43,17 @@ def retrieve_context(question: str, k_final: int = K_FINAL) -> list[dict]:
     return rerank(question, candidates, k=k_final)
 
 
-def answer(question: str, llm_client: LLMClient | None = None, k_final: int = K_FINAL) -> dict:
+def answer(
+    question: str,
+    llm_client: LLMClient | None = None,
+    k_final: int = K_FINAL,
+    context_chunks: list[dict] | None = None,
+) -> dict:
     """retrieve -> format context -> prompt -> llm -> parse, with one grounding-retry.
+
+    Pass `context_chunks` (as returned by `retrieve_context()`) to reuse a retrieval
+    already done by a caller (e.g. the agent's router checking retrieval confidence)
+    instead of paying for hybrid retrieval + reranking twice.
 
     Returns: {answer, citations, usage, latency_ms, grounded, grounding_flags} plus
     `error` if the LLM call failed (e.g. quota exceeded), in which case `answer` is None.
@@ -52,7 +61,8 @@ def answer(question: str, llm_client: LLMClient | None = None, k_final: int = K_
     t0 = time.perf_counter()
     llm_client = llm_client or LLMClient()
 
-    context_chunks = retrieve_context(question, k_final)
+    if context_chunks is None:
+        context_chunks = retrieve_context(question, k_final)
     context = _format_context(context_chunks)
     prompt = ANSWER_PROMPT_V1.format(context=context, question=question)
 

@@ -35,7 +35,7 @@ K_SPARSE = 20
 RRF_K = 60
 K_FUSED = 20
 K_FINAL = 5
-REFUSE_THRESHOLD = 0.0  # [FILL Phase 5.3] set from Phase 3 unanswerable scores
+REFUSE_THRESHOLD = 3.5  # set at Phase 5.3 from dev-set top rerank scores (see HUMAN_GUIDE.md)
 
 # --- Eval ---
 EVAL_SPLIT_SEED = 42

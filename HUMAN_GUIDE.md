@@ -14,6 +14,7 @@ Append-only log. Claude Code adds to this file at the end of every phase and at 
 - **Phase 2 done.** Dense (Chroma + bge-small) and BM25 indexes built for both chunkers. 1,900 + 307 chunks indexed in each. Idempotency verified by rebuilding twice and comparing counts. Details below.
 - **Phase 3 done.** 3.1: 57/60 questions verified by human review, split 34 dev / 23 test (stratified). 3.2–3.5: hybrid retrieval (RRF), cross-encoder reranker, retrieval metrics (page-overlap hit criterion), and the ablation study all built and run. Best config by dev MRR: **E (hybrid + rerank)**, test Recall@5 = 0.905, MRR@10 = 0.747. Honest findings (hybrid alone underperforms dense-only on this dev set; reranker's quality gain is small relative to its ~65x latency cost) documented below. Details below.
 - **Phase 4 done.** LLM wrapper with disk cache (`generate/llm.py`), versioned prompt (`generate/prompts.py`), citation-grounding validator with one auto-retry (`generate/grounding.py`), and the full answer chain (`generate/answer.py`) all built and tested against the real Gemini API. **100% grounding pass rate on all 34 dev questions** — verified this isn't a trivial "refuse everything" result: traced one of the 5 refused-but-answerable questions and confirmed it was a genuine retrieval miss (the correct chunk never made the top 5), not a lazy refusal. Two real bugs found and fixed along the way (content-shape mismatch, a prompt-rule conflict) plus one infra fix (request timeout, after a background run hung indefinitely on a stalled connection). **H4 human spot-check: 10/10 ✅.** Details below.
+- **Phase 5 done.** LangGraph agent built (`agent/state.py`, `agent/nodes.py`, `agent/graph.py`): follow-up rewriting, a 3-stage router (keywords → retrieval confidence → LLM classifier), the Phase 4 RAG chain, DuckDuckGo web search restricted to sebi.gov.in, and a refusal node. **Router accuracy: 100% (34/34) on dev** — 23 questions resolved via the cheap retrieval-confidence fast path, 11 needed the LLM classifier, zero mistakes either way. `REFUSE_THRESHOLD=3.5` calibrated from real dev-set rerank scores. All 3 routes verified end-to-end with real API/search calls, not just mocks. Details below.
 
 ---
 
@@ -283,4 +284,70 @@ phase-3: hybrid retrieval, reranking and ablation study
 **Suggested commit message:**
 ```
 phase-4: grounded answer chain with citation validation
+```
+
+---
+
+## Phase 5 — LangGraph Agent
+
+**What was built:**
+- `agent/state.py` — `AgentState`: `messages` (reduced via LangGraph's `add_messages`), `question`, `standalone_question`, `route`/`route_reason`, `retrieved`, `web_results`, `answer`, `citations`, `grounded`, `grounding_flags`, `usage_total`.
+- `agent/nodes.py`:
+  - `rewrite_followup` — no-op (and no LLM call) with no prior conversation; otherwise rewrites the latest message into a standalone question using the last `MEMORY_TURNS`=4 turns.
+  - `router` — 3 stages, cheapest first: (1) recency keywords (`"latest"`, `"2026"`, etc.) → `recent`, free; (2) retrieval confidence — runs the Phase 3 winning pipeline (hybrid + rerank) once, and if the top rerank score is above `REFUSE_THRESHOLD` routes straight to `regulation`, also free (no extra LLM call); (3) only when confidence is low does it call an LLM classifier to decide `regulation` vs `out_of_scope`. The retrieval done here is reused by `rag` (see below) rather than redone.
+  - `rag` — the Phase 4 chain, passed the router's already-retrieved context so retrieval+rerank (~4s) doesn't run twice per query.
+  - `grounding_check` — a deliberate pass-through: `rag` already ran the grounding check (with its own retry) internally in Phase 4; this node exists only as a distinct graph/trace point for Phase 7's Langfuse spans, not to redo the check.
+  - `web_search` / `answer_from_web` — DuckDuckGo (`ddgs`) query restricted to `site:sebi.gov.in`, top 5 results; answers only from the returned snippets, cites the URLs, always ends with "Based on search snippets; verify on sebi.gov.in." A search failure (rate limit, no results) degrades to a plain "couldn't find results, try rephrasing" message rather than crashing.
+  - `refuse` — states the 5 covered regulations and invites a rephrase.
+- `agent/graph.py` — wires exactly the roadmap's graph: `START → rewrite_followup → router →` (`regulation → rag → grounding_check`, `recent → web_search → answer_from_web`, `out_of_scope → refuse`) `→ END`.
+- `scripts/export_agent_graph.py` — LangGraph's built-in Mermaid export → `reports/figures/agent_graph.md`.
+- `scripts/run_router_eval.py` — runs the router on all 34 dev questions, writes `reports/router_dev.json`.
+
+**REFUSE_THRESHOLD calibration:** computed the top rerank score for every dev question (both answerable and the 3 out-of-scope ones) via the real retrieval pipeline. Unanswerable scores topped out at 3.01 (range: -4.65 to 3.01); answerable scores ranged -9.56 to 10.56, mostly well above 3.5. Set `REFUSE_THRESHOLD = 3.5` — comfortably above every observed unanswerable score, so no out-of-scope question can slip through the fast path unchecked, while ~74% of answerable questions (those already scoring confidently) skip the LLM classifier call entirely.
+
+**Router accuracy on dev: 100% (34/34).** Confusion matrix: `regulation→regulation` 31/31, `out_of_scope→out_of_scope` 3/3, zero misroutes. Cost breakdown: 23/34 (68%) resolved via the free retrieval-confidence fast path, 11/34 needed the LLM classifier (all 3 out-of-scope questions among them, plus 8 answerable ones that happened to score below 3.5) — every single classifier call still landed on the correct label. 0/34 triggered the recency-keyword path (expected — the eval set has no "recent circular" style questions).
+
+**3 real end-to-end smoke calls** (not mocked — real Gemini, real Chroma/BM25, real DuckDuckGo), one per route:
+1. *"When must a listed company disclose a material event?"* → `route: regulation`, `grounded: True`, cited `lodr_2015.pdf:30:*` chunks correctly.
+2. *"What is the latest SEBI circular on listing obligations?"* → `route: recent` (keyword match), real DuckDuckGo results returned from sebi.gov.in (master circulars, correctly dated), answer cited 5 real URLs and ended with the required "verify on sebi.gov.in" line.
+3. *"What is the GST rate on mutual fund management fees?"* → `route: out_of_scope`, returned the scope-statement refusal message.
+
+**Agent graph** (`reports/figures/agent_graph.md`):
+```mermaid
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	rewrite_followup(rewrite_followup)
+	router(router)
+	rag(rag)
+	grounding_check(grounding_check)
+	web_search(web_search)
+	answer_from_web(answer_from_web)
+	refuse(refuse)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> rewrite_followup;
+	rag --> grounding_check;
+	rewrite_followup --> router;
+	router -. &nbsp;regulation&nbsp; .-> rag;
+	router -. &nbsp;out_of_scope&nbsp; .-> refuse;
+	router -. &nbsp;recent&nbsp; .-> web_search;
+	web_search --> answer_from_web;
+	answer_from_web --> __end__;
+	grounding_check --> __end__;
+	refuse --> __end__;
+```
+
+**Tests:** 67 passed total (15 new: `test_nodes.py` covering all 5 node functions incl. the no-history/with-history rewrite split and the router's keyword/confidence/classifier tiers; `test_graph.py` running all 3 routes end-to-end through the compiled graph, fully mocked), `ruff check .` clean.
+
+### Phase 5 Exit Gate
+
+- [x] Graph runs end-to-end for all 3 routes (mocked tests in `test_graph.py` + 3 real smoke calls above).
+- [x] Router accuracy on dev recorded (100%, `reports/router_dev.json`).
+- [x] Mermaid graph committed (`reports/figures/agent_graph.md`).
+- [x] `private/PROJECT_EXPLAINED.md` → *Why an agent instead of a chain* updated with real router numbers.
+- [x] All tests pass (67/67), ruff clean.
+- [ ] 🧑 H6: human runs `git add . && git commit && git push`.
+
+**Suggested commit message:**
+```
+phase-5: LangGraph agent with routing and follow-up memory
 ```
