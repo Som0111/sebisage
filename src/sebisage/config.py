@@ -44,6 +44,7 @@ EVAL_DEV_FRACTION = 0.6
 # --- Generation ---
 ANSWER_MAX_WORDS = 150
 MAX_WAIT_S = 60
+REQUEST_TIMEOUT_S = 90  # hard cap per LLM call; the underlying SDK has none by default
 
 # --- Agent / memory ---
 MEMORY_TURNS = 4

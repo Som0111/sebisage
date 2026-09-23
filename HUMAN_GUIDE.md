@@ -13,6 +13,7 @@ Append-only log. Claude Code adds to this file at the end of every phase and at 
 - **Phase 1 done.** PDF parsing (`ingest/parse_pdf.py`) + structure-aware and fixed chunkers (`ingest/chunk.py`) implemented and run over all 5 PDFs. 1,900 structured chunks (one fewer than first reported, after a Phase 2 bugfix — see Phase 1 note below), 307 fixed chunks, 100% reg_no coverage (well above the 85% bar). Details and sample chunks below.
 - **Phase 2 done.** Dense (Chroma + bge-small) and BM25 indexes built for both chunkers. 1,900 + 307 chunks indexed in each. Idempotency verified by rebuilding twice and comparing counts. Details below.
 - **Phase 3 done.** 3.1: 57/60 questions verified by human review, split 34 dev / 23 test (stratified). 3.2–3.5: hybrid retrieval (RRF), cross-encoder reranker, retrieval metrics (page-overlap hit criterion), and the ablation study all built and run. Best config by dev MRR: **E (hybrid + rerank)**, test Recall@5 = 0.905, MRR@10 = 0.747. Honest findings (hybrid alone underperforms dense-only on this dev set; reranker's quality gain is small relative to its ~65x latency cost) documented below. Details below.
+- **Phase 4 done.** LLM wrapper with disk cache (`generate/llm.py`), versioned prompt (`generate/prompts.py`), citation-grounding validator with one auto-retry (`generate/grounding.py`), and the full answer chain (`generate/answer.py`) all built and tested against the real Gemini API. **100% grounding pass rate on all 34 dev questions** — verified this isn't a trivial "refuse everything" result: traced one of the 5 refused-but-answerable questions and confirmed it was a genuine retrieval miss (the correct chunk never made the top 5), not a lazy refusal. Two real bugs found and fixed along the way (content-shape mismatch, a prompt-rule conflict) plus one infra fix (request timeout, after a background run hung indefinitely on a stalled connection). **H4 human spot-check: 10/10 ✅.** Details below.
 
 ---
 
@@ -243,4 +244,43 @@ After you confirm: I'll split it deterministically (seed in `config.py`) into `q
 **Suggested commit message:**
 ```
 phase-3: hybrid retrieval, reranking and ablation study
+```
+
+---
+
+## Phase 4 — Grounded Generation with Citations
+
+**What was built:**
+- `generate/llm.py` — `LLMClient` wraps `ChatGoogleGenerativeAI`. Disk cache keyed by SHA-256 of (model, prompt_version, messages) at `.cache/llm/` (gitignored) — identical calls never hit the API twice. Tracks input/output tokens. On a 429, extracts the server's suggested retry delay from the error's `RetryInfo` details, waits once (capped at `MAX_WAIT_S`), retries once more, then gives up gracefully with `error: "quota_exceeded"` rather than raising.
+- `generate/prompts.py` — `ANSWER_PROMPT_V1`: cite every factual sentence `[n]`, reply exactly `INSUFFICIENT_CONTEXT` if the context doesn't answer the question, ≤150 words, trailing `Source:` line.
+- `generate/grounding.py` — `check_grounding()`: `invalid_citation` (a `[n]` pointing past the end of the context), `uncited_sentence` (a sentence with no `[n]` at all), `hallucinated_reference` (a "Regulation NN" mentioned in the answer that doesn't appear in any cited chunk's text).
+- `generate/answer.py` — the full chain: `hybrid.retrieve()` → `rerank()` (Phase 3's winning config E) → numbered context → prompt → `LLMClient` → `check_grounding()`. If ungrounded, one automatic retry with a stricter reminder appended to the prompt; returns `grounded: false` with the flags if the retry doesn't fix it either.
+- `scripts/run_answer_samples.py` — runs 10 hand-picked dev questions (spread across all 6 types) through the chain, writes `reports/answer_samples.md` for the H4 checkpoint.
+- `scripts/run_grounding_eval.py` — runs *all* 34 dev questions, writes `reports/grounding_dev.json`.
+
+**Real bugs found and fixed while running this against the actual Gemini API (not caught by mocked tests, since I hadn't seen the real response shape yet):**
+1. **Response content is a list, not a string.** `ChatGoogleGenerativeAI`'s `.content` for this model returns `[{"type": "text", "text": "...", "extras": {...}}]`, not a plain string — crashed `check_grounding()` on the first real call. Fixed with `llm.py::_extract_text()`. The crash happened *after* the (bad) disk-cache write, so a same-input retry replayed the broken cached value until the cache was cleared — worth remembering for any future "I fixed it but it's still broken" moment.
+2. **Prompt self-contradiction on refusal.** The prompt said "reply with exactly INSUFFICIENT_CONTEXT" *and*, separately, "always add a Source: line" — the model followed both literally, producing `"INSUFFICIENT_CONTEXT\n\nSource: None"`, which failed the exact-match check in both `grounding.py` and `answer.py` and silently triggered a wasted retry (and an extra LLM call) on *every* out-of-scope question. Fixed the prompt to make the two rules mutually exclusive, and made both checks use `.startswith()` instead of `==` as a defensive fallback. Confirmed fixed: same question went from 39s/flagged-ungrounded to 3.8s/cleanly-grounded.
+3. **Infra: no request timeout.** A background eval run went fully idle (near-zero CPU, no new cache entries) for 14+ minutes with no error — a stalled connection with no timeout just hangs forever. Added `REQUEST_TIMEOUT_S = 90` (`config.py`) passed to `ChatGoogleGenerativeAI(timeout=...)`. Not itself a code bug, but the kind of thing that would silently stall a CI run.
+
+**Human spot-check (10 dev questions, `reports/answer_samples.md`):** all 10 came back `grounded: True` after the fixes above — 8 correctly answered with accurate citations (spot-verified the content against the cited chunk text, e.g. the reg-30 30-min/12-hr/24-hr disclosure timelines, the SAST 25%/5% thresholds, the 120-day PIT trading-plan cooling-off period), 2 correctly refused (`INSUFFICIENT_CONTEXT`) — one genuinely out-of-scope (RBI repo rate), consistent with the retrieval verification below.
+
+**Grounding pass rate on all dev questions:** **100% (34/34)**, `reports/grounding_dev.json`. Read literally this number is close to meaningless on its own — a system that refuses every question would also score 100% grounded, since `check_grounding()` treats `INSUFFICIENT_CONTEXT` as trivially grounded by design (no citations to hallucinate). **What makes it a real result rather than a trivial one:** 5 of the 34 questions were refused despite being genuinely answerable (not among the 3 out-of-scope dev questions, which were correctly refused too — 8/34 refused in total). I traced one of the 5 (`q036`, "For how long must an investment adviser preserve its records?", gold `ia_2013.pdf:19:2:0`) end to end: the retrieval step's top-5 candidates included the *neighboring* sub-regulation (`19:1:0`, about *what* records to keep) but never surfaced `19:2:0` (the actual "five years" answer). The model correctly said `INSUFFICIENT_CONTEXT` because the context it was actually given didn't contain the answer — that's the grounding system doing exactly its job (refuse rather than guess), not a lazy default. The real limitation this surfaces is a **retrieval** gap on closely-adjacent sub-regulations, not a generation-quality one — worth revisiting with the roadmap's own "parent-child retrieval" idea (Appendix B) in a later phase.
+
+### 🧑 HUMAN CHECKPOINT H4 — answer spot-check — ✅ done
+
+**Tally: 10/10 ✅, 0 ⚠️, 0 ❌** (`reports/answer_samples.md`). Well under the ≥3-❌ escalation threshold, so no escalation needed — continuing straight to Phase 5.
+
+### Phase 4 Exit Gate
+
+- [x] Chain returns grounded answers with citations (`generate/answer.py`).
+- [x] Grounding validator tested for all 3 flags (`tests/test_grounding.py`, 9 tests).
+- [x] Human spot-check tally recorded (10/10 ✅, above).
+- [x] Grounding pass rate on all dev questions in `reports/grounding_dev.json` (100%, with the retrieval-gap caveat above).
+- [x] All tests pass (52/52), ruff clean.
+- [ ] 🧑 H6: human runs `git add . && git commit && git push`.
+
+**Suggested commit message:**
+```
+phase-4: grounded answer chain with citation validation
 ```

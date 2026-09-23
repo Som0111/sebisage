@@ -1,0 +1,281 @@
+{
+  "n_dev": 34,
+  "n_answered": 34,
+  "n_errors": 0,
+  "grounded_pass_rate": 1.0,
+  "flag_counts": {},
+  "per_question": [
+    {
+      "id": "q019",
+      "type": "deadline",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q039",
+      "type": "deadline",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q035",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q047",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q023",
+      "type": "threshold",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q027",
+      "type": "threshold",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q034",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q030",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q026",
+      "type": "threshold",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": true,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q057",
+      "type": "out_of_scope",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": true,
+      "is_out_of_scope_question": true
+    },
+    {
+      "id": "q006",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q052",
+      "type": "deadline",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": true,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q051",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q059",
+      "type": "out_of_scope",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": true,
+      "is_out_of_scope_question": true
+    },
+    {
+      "id": "q004",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q042",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q049",
+      "type": "deadline",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": true,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q021",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q025",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q016",
+      "type": "definition",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q048",
+      "type": "threshold",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": true,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q029",
+      "type": "deadline",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q060",
+      "type": "out_of_scope",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": true,
+      "is_out_of_scope_question": true
+    },
+    {
+      "id": "q010",
+      "type": "penalty",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q017",
+      "type": "definition",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q022",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q007",
+      "type": "deadline",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q045",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q050",
+      "type": "deadline",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q036",
+      "type": "deadline",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": true,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q031",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q011",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q012",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    },
+    {
+      "id": "q014",
+      "type": "obligation",
+      "grounded": true,
+      "flags": [],
+      "gave_insufficient_context": false,
+      "is_out_of_scope_question": false
+    }
+  ]
+}
