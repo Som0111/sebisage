@@ -12,6 +12,7 @@ Append-only log. Claude Code adds to this file at the end of every phase and at 
 - **Phase 0 exit gate: all items complete.** Suggested commit below — human to run `git add . && git commit && git push` (H6).
 - **Phase 1 done.** PDF parsing (`ingest/parse_pdf.py`) + structure-aware and fixed chunkers (`ingest/chunk.py`) implemented and run over all 5 PDFs. 1,900 structured chunks (one fewer than first reported, after a Phase 2 bugfix — see Phase 1 note below), 307 fixed chunks, 100% reg_no coverage (well above the 85% bar). Details and sample chunks below.
 - **Phase 2 done.** Dense (Chroma + bge-small) and BM25 indexes built for both chunkers. 1,900 + 307 chunks indexed in each. Idempotency verified by rebuilding twice and comparing counts. Details below.
+- **Phase 3 done.** 3.1: 57/60 questions verified by human review, split 34 dev / 23 test (stratified). 3.2–3.5: hybrid retrieval (RRF), cross-encoder reranker, retrieval metrics (page-overlap hit criterion), and the ablation study all built and run. Best config by dev MRR: **E (hybrid + rerank)**, test Recall@5 = 0.905, MRR@10 = 0.747. Honest findings (hybrid alone underperforms dense-only on this dev set; reranker's quality gain is small relative to its ~65x latency cost) documented below. Details below.
 
 ---
 
@@ -164,4 +165,82 @@ Total `storage/chroma/` directory: ~22–27 MB (varies slightly run to run — C
 **Suggested commit message:**
 ```
 phase-2: dense and BM25 indexes
+```
+
+---
+
+## Phase 3.1 — Evaluation Question Set (draft)
+
+**What was built:**
+- `scripts/draft_eval_questions.py` — 60 hand-written questions (no LLM call, nothing to fabricate or cache): 45 answerable in the regulation's own wording, 10 paraphrased in plain/colloquial language (tests whether dense retrieval bridges vocabulary gaps), 5 out-of-scope. Every answerable/paraphrased question cites a real `chunk_id` from `chunks_structured.jsonl` that I read before writing the question, and every `gold_reg`/`gold_sub_reg` was cross-checked programmatically against that chunk's actual metadata (zero mismatches). Spread: LODR 14, PIT 11, SAST 8, IA 6, RA 6 (answerable) + 10 paraphrased across all 5 + 5 out-of-scope. Types: obligation 28, deadline 14, threshold 6, definition 5, out_of_scope 5, penalty 2. Difficulty: easy 20, medium 32, hard 8.
+- `scripts/build_review_html.py` — generates `data/eval/review.html`, a self-contained offline page (embeds all 60 questions + their supporting chunk text as inline JSON, no server or network needed) with per-question Keep/Fix/Drop buttons, an edit box for the question text and gold labels, a progress counter, and an Export button that downloads `questions_verified.jsonl` (excludes Dropped rows, applies Fix edits, keeps the original wording for Kept rows).
+- Tested the actual page end-to-end in a real browser (Playwright): loads with no real errors (only a harmless favicon 404), all 60 cards render correctly with question/gold/chunk text, Keep/Fix/Drop buttons update state and the progress counter, edits made in Fix mode are captured, state survives a page reload (localStorage), and the export logic was verified to produce correct JSONL (drops excluded, edited questions reflected, gold labels preserved) — checked via direct evaluation of the export function's output, not by inspecting a downloaded file.
+
+data/processed/ and data/eval/ are the only outputs from this step; `data/eval/questions_verified.jsonl` does not exist yet — it's produced by *your* review below.
+
+### 🧑 HUMAN CHECKPOINT H3 — verify the evaluation question set
+
+Open `data/eval/review.html` directly in your browser (double-click it, or drag it in — no server needed). For each of the 60 questions:
+- Check that the gold regulation/sub-regulation shown really does answer the question, using the supporting chunk text shown right below it.
+- **Keep** if it's correct as-is.
+- **Fix** if the question or gold label needs a small correction — an edit box will open; edit the question text and/or `gold_reg`/`gold_sub_reg`, they're saved automatically as you type.
+- **Drop** if the question is bad or not worth keeping.
+- The 5 out-of-scope questions (badged "out-of-scope") have no chunk text to check — just confirm they're genuinely unrelated to the 5 regulations covered.
+
+When done, click **Export questions_verified.jsonl** (top right) and move the downloaded file into `data/eval/questions_verified.jsonl` in the repo. Tell Claude Code "questions verified" when it's in place.
+
+After you confirm: I'll split it deterministically (seed in `config.py`) into `questions_dev.jsonl` (~60%) and `questions_test.jsonl` (~40%), then continue with 3.2 (hybrid retrieval), 3.3 (reranker), 3.4 (retrieval metrics) and 3.5 (the ablation study) — all tuning happens on dev only, test is touched once at the very end.
+
+✅ **H3 confirmed.** 3 of 60 questions dropped in review (q015 "connected person" definition, q024 PIT repeal question, q040 RA registration question — all Kept/Dropped only, no Fix edits were made). 57 verified questions remain.
+
+---
+
+## Phase 3.2–3.5 — Hybrid Retrieval, Reranking, Metrics, Ablation Study
+
+### Dev/test split
+`scripts/split_eval_questions.py` — **stratified by `type`** (not a plain shuffle-and-cut), seed 42, ~60/40. Plain random splitting risked putting all 5 out-of-scope questions in one split; Phase 5.3 needs some in *dev* to calibrate `REFUSE_THRESHOLD` from their scores. Result: **dev 34** (3 out-of-scope), **test 23** (2 out-of-scope), no id overlap, union = all 57.
+
+### What was built
+- `retrieve/hybrid.py` — dense (top `K_DENSE`=20) + BM25 (top `K_SPARSE`=20) fused with Reciprocal Rank Fusion (`RRF_K`=60), returns top `K_FUSED`=20 with each hit tagged by which retriever(s) found it.
+- `retrieve/rerank.py` — cross-encoder (`ms-marco-MiniLM-L-6-v2`) scores `(query, chunk_text)` pairs for the fused candidates, returns top `K_FINAL`.
+- `eval/retrieval_eval.py` — Recall@1/3/5, MRR@10, breakdown by `type`/`difficulty`.
+  - **Design decision, deviates from the roadmap's literal wording:** hit detection uses **page-range overlap** (same source PDF, retrieved chunk's page range overlaps the gold chunk's page range) instead of `reg_no` string matching. Reason: the fixed-size baseline chunker never sets `reg_no` (`ingest/chunk.py::fixed_chunks`, by the Phase 1 spec) — reg_no matching would make config A score exactly 0% on every metric by construction, regardless of actual retrieval quality, which isn't a meaningful ablation. Page overlap works uniformly across both chunkers and is if anything a *stricter* test (it requires finding the specific sub-regulation/clause, not just any chunk from the right regulation).
+- `scripts/run_ablation.py` — runs configs A–E on dev, writes `reports/retrieval_ablation_dev.json` + `reports/figures/ablation.png`, picks the best config by dev MRR@10, runs it once on test → `reports/retrieval_test.json` (with type/difficulty breakdown).
+- Added `matplotlib` as a dependency (not in the roadmap's Section 3 stack list) — needed to produce the required `ablation.png`; no other charting option existed among the listed libraries.
+
+### Ablation results (dev, 34 questions — `reports/retrieval_ablation_dev.json`)
+
+| Config | Chunker | Retrieval | Rerank | Recall@1 | Recall@3 | Recall@5 | MRR@10 | p50 latency | p95 latency |
+|---|---|---|---|---|---|---|---|---|---|
+| A | fixed | dense only | no | 0.452 | 0.677 | 0.839 | 0.600 | 64ms | 98ms |
+| B | structured | dense only | no | 0.613 | 0.871 | 0.935 | 0.756 | 62ms | 153ms |
+| C | structured | BM25 only | no | 0.387 | 0.613 | 0.677 | 0.519 | 39ms | 84ms |
+| D | structured | hybrid (RRF) | no | 0.452 | 0.774 | 0.871 | 0.616 | 125ms | 173ms |
+| **E** | **structured** | **hybrid (RRF)** | **yes** | **0.645** | **0.871** | **0.871** | **0.762** | **4060ms** | **4839ms** |
+
+**Best config by dev MRR@10: E** (hybrid + rerank), selected mechanically per the roadmap's rule. Run once on **test** (23 questions, `reports/retrieval_test.json`): Recall@1 = 0.619, Recall@3 = 0.857, **Recall@5 = 0.905**, **MRR@10 = 0.747**, p50 latency 4206ms, p95 5247ms.
+
+**Honest findings, not the expected clean story:**
+1. **Structured chunking clearly beats fixed** (B vs A): MRR 0.756 vs 0.600, Recall@5 0.935 vs 0.839. This is the one result that came out exactly as hypothesized.
+2. **BM25 alone is the weakest single retriever** (C: MRR 0.519) — expected, since a third of the dev set is deliberately paraphrased away from the regulation's own wording, which is exactly what defeats keyword search.
+3. **Hybrid RRF (D) does *not* beat dense-only (B)** on this dev set (MRR 0.616 vs 0.756) — BM25's weak rankings pull the fused blend down below pure dense. This only reverses once reranking (E) is added, which can override a bad candidate order rather than being limited by it.
+4. **The reranker's MRR gain over dense-only is small (E vs B: 0.762 vs 0.756 — a 0.006 difference) while its latency cost is enormous (4060ms vs 62ms, ~65x)** — real CPU cross-encoder cost scales with input length, and real chunk text (up to ~400 tokens) is far longer than a synthetic smoke-test sentence would suggest. E still wins by the stated dev-MRR selection rule, but this tradeoff is worth revisiting when building the production API path in Phase 6 (e.g. truncating candidate text before reranking, or gating reranking behind a latency budget) — not changed now since the roadmap's config-selection rule doesn't factor in latency.
+5. Dev set is only 34 answerable-adjacent questions (31 answerable + 3 out-of-scope) — small enough that these orderings could shift with a different split; reported as measured, not smoothed over.
+
+**Test breakdown by type/difficulty** (from `reports/retrieval_test.json`, config E): recall@5 is 1.0 for `deadline` (6/6) and `definition` (2/2) questions, 0.9 for `obligation` (10), 0.5 for `threshold` (2, small n). By difficulty: `easy` and `medium` both hit recall@5 = 1.0; `hard` questions (n=3) score much lower (recall@5 = 0.333) — the 3 hardest dev/test questions (e.g. cross-referencing sub-regulations, or "what happens if a fine goes unpaid") are exactly where retrieval struggles most, which matches intuition.
+
+**Tests:** 31 passed total (19 from Phase 1–2 + 6 `hybrid` + 3 `rerank` + 6 `retrieval_eval`... — retrieval_eval tests fully rewritten once the page-overlap redesign was made, to match), `ruff check .` clean.
+
+### Phase 3 Exit Gate
+
+- [x] Verified question set split into dev/test (34/23, stratified by type).
+- [x] Ablation table with real numbers above and in `reports/retrieval_ablation_dev.json`.
+- [x] Test-set result recorded once (`reports/retrieval_test.json`).
+- [x] `private/PROJECT_EXPLAINED.md` → *Key results* and *Design decisions* updated with the measured deltas (including the honest hybrid-vs-dense and reranker-latency findings above).
+- [x] All tests pass (31/31), ruff clean.
+- [ ] 🧑 H6: human runs `git add . && git commit && git push`.
+
+**Suggested commit message:**
+```
+phase-3: hybrid retrieval, reranking and ablation study
 ```

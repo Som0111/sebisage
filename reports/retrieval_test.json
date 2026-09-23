@@ -1,0 +1,91 @@
+{
+  "n_answerable": 21,
+  "recall_at_1": 0.6190476190476191,
+  "recall_at_3": 0.8571428571428571,
+  "recall_at_5": 0.9047619047619048,
+  "mrr_at_10": 0.7468253968253968,
+  "n_unanswerable": 2,
+  "unanswerable_top_scores": [
+    -4.711827278137207,
+    -5.75601053237915
+  ],
+  "latency_p50_ms": 4205.6,
+  "latency_p95_ms": 5247.0,
+  "config": "E",
+  "breakdown_by_type": {
+    "deadline": {
+      "n_answerable": 6,
+      "recall_at_1": 0.5,
+      "recall_at_3": 0.8333333333333334,
+      "recall_at_5": 1.0,
+      "mrr_at_10": 0.7083333333333334,
+      "n_unanswerable": 0,
+      "unanswerable_top_scores": []
+    },
+    "obligation": {
+      "n_answerable": 10,
+      "recall_at_1": 0.7,
+      "recall_at_3": 0.9,
+      "recall_at_5": 0.9,
+      "mrr_at_10": 0.8099999999999999,
+      "n_unanswerable": 0,
+      "unanswerable_top_scores": []
+    },
+    "definition": {
+      "n_answerable": 2,
+      "recall_at_1": 0.5,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "mrr_at_10": 0.6666666666666666,
+      "n_unanswerable": 0,
+      "unanswerable_top_scores": []
+    },
+    "threshold": {
+      "n_answerable": 2,
+      "recall_at_1": 0.5,
+      "recall_at_3": 0.5,
+      "recall_at_5": 0.5,
+      "mrr_at_10": 0.5,
+      "n_unanswerable": 0,
+      "unanswerable_top_scores": []
+    },
+    "penalty": {
+      "n_answerable": 1,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "mrr_at_10": 1.0,
+      "n_unanswerable": 0,
+      "unanswerable_top_scores": []
+    }
+  },
+  "breakdown_by_difficulty": {
+    "easy": {
+      "n_answerable": 8,
+      "recall_at_1": 0.5,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "mrr_at_10": 0.7291666666666666,
+      "n_unanswerable": 0,
+      "unanswerable_top_scores": []
+    },
+    "medium": {
+      "n_answerable": 10,
+      "recall_at_1": 0.8,
+      "recall_at_3": 0.9,
+      "recall_at_5": 1.0,
+      "mrr_at_10": 0.875,
+      "n_unanswerable": 0,
+      "unanswerable_top_scores": []
+    },
+    "hard": {
+      "n_answerable": 3,
+      "recall_at_1": 0.3333333333333333,
+      "recall_at_3": 0.3333333333333333,
+      "recall_at_5": 0.3333333333333333,
+      "mrr_at_10": 0.3666666666666667,
+      "n_unanswerable": 0,
+      "unanswerable_top_scores": []
+    }
+  }
+}

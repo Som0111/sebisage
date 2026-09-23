@@ -25,6 +25,7 @@ dependencies = [
     "streamlit",
     "python-dotenv",
     "httpx",
+    "matplotlib",
 ]
 
 [project.optional-dependencies]
