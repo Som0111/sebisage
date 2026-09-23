@@ -15,6 +15,7 @@ Append-only log. Claude Code adds to this file at the end of every phase and at 
 - **Phase 3 done.** 3.1: 57/60 questions verified by human review, split 34 dev / 23 test (stratified). 3.2–3.5: hybrid retrieval (RRF), cross-encoder reranker, retrieval metrics (page-overlap hit criterion), and the ablation study all built and run. Best config by dev MRR: **E (hybrid + rerank)**, test Recall@5 = 0.905, MRR@10 = 0.747. Honest findings (hybrid alone underperforms dense-only on this dev set; reranker's quality gain is small relative to its ~65x latency cost) documented below. Details below.
 - **Phase 4 done.** LLM wrapper with disk cache (`generate/llm.py`), versioned prompt (`generate/prompts.py`), citation-grounding validator with one auto-retry (`generate/grounding.py`), and the full answer chain (`generate/answer.py`) all built and tested against the real Gemini API. **100% grounding pass rate on all 34 dev questions** — verified this isn't a trivial "refuse everything" result: traced one of the 5 refused-but-answerable questions and confirmed it was a genuine retrieval miss (the correct chunk never made the top 5), not a lazy refusal. Two real bugs found and fixed along the way (content-shape mismatch, a prompt-rule conflict) plus one infra fix (request timeout, after a background run hung indefinitely on a stalled connection). **H4 human spot-check: 10/10 ✅.** Details below.
 - **Phase 5 done.** LangGraph agent built (`agent/state.py`, `agent/nodes.py`, `agent/graph.py`): follow-up rewriting, a 3-stage router (keywords → retrieval confidence → LLM classifier), the Phase 4 RAG chain, DuckDuckGo web search restricted to sebi.gov.in, and a refusal node. **Router accuracy: 100% (34/34) on dev** — 23 questions resolved via the cheap retrieval-confidence fast path, 11 needed the LLM classifier, zero mistakes either way. `REFUSE_THRESHOLD=3.5` calibrated from real dev-set rerank scores. All 3 routes verified end-to-end with real API/search calls, not just mocks. Details below.
+- **Phase 6 done.** `guardrails.py` (length/injection reject, PAN/Aadhaar/phone masking) and `api.py` (`/health`, `/ask`, `/ask/stream`, `/sources/{chunk_id}`, `/stats`) built, with an in-memory session store, per-IP rate limiting, and per-query cost estimation. Streaming verified end-to-end against a real local `uvicorn` server (not just mocked tests). One real gap found and fixed: `api.py` never loaded `.env`, so a real server process would have had no API keys at all — silent until the very first real run. Details below.
 
 ---
 
@@ -350,4 +351,37 @@ graph TD;
 **Suggested commit message:**
 ```
 phase-5: LangGraph agent with routing and follow-up memory
+```
+
+---
+
+## Phase 6 — API, Streaming, Guardrails, Cost Tracking
+
+**What was built:**
+- `guardrails.py` — `check_input()`: rejects (400) questions over `MAX_QUESTION_CHARS`=2000 or matching a prompt-injection pattern ("ignore previous instructions", "system prompt", "jailbreak", "pretend you are", etc.); masks PAN (`[A-Z]{5}[0-9]{4}[A-Z]`), Aadhaar (12 digits), and Indian mobile numbers before the text ever reaches the LLM — masking never rejects the question, only redacts.
+- `api.py` — FastAPI app:
+  - `GET /health` — open, no key required. Model names, live index stats (from `reports/index_stats.json`), and the Chroma store's latest file-mtime as a build-date proxy.
+  - `POST /ask` — `X-API-Key` required (`require_api_key` dependency, reads `SEBISAGE_API_KEY` from the environment). Runs the guardrail, then the full LangGraph agent, returns `answer`, `citations` (each resolved to `regulation`/`reg_no`/`page` via the chunk store, or left bare for web-search URL citations), `route`, `grounded`, `usage`, `estimated_cost_usd`, `latency_ms`, `trace_id`, `session_id`.
+  - `POST /ask/stream` — same X-API-Key requirement, same underlying computation, but streams the result back as SSE: a `route` event, then `token` events (the already-fully-generated and grounding-validated answer split into words), then a final `citations` event. **Deliberately not raw provider token-streaming** — the grounding check (with its retry) needs to see the *complete* answer before deciding whether to keep it, so streaming raw model tokens directly to the client would risk showing text that later gets silently replaced by a retry. Computing the full grounded answer first, then streaming the validated result, is the architecturally correct choice given that constraint, not a shortcut — documented as such in the endpoint's docstring.
+  - `GET /sources/{chunk_id}` — chunk text + metadata, no key required (public regulation text, needed by the UI's citation panel).
+  - `GET /stats` — running totals since process start: query count, route counts, LLM disk-cache hit rate (tracked via a new `generate/llm.py::get_cache_stats()`), mean latency, total input/output tokens.
+  - In-memory session store (`session_id` → LangChain message list), lazily pruned past `SESSION_TTL_S`=3600s on each access.
+  - Per-IP rate limiting (`RATE_LIMIT_PER_MIN`=10), simple in-memory sliding 60s window.
+  - Cost estimate: `COST_PER_1K_INPUT`/`COST_PER_1K_OUTPUT` in `config.py`, sourced from Gemini 3.1 Flash-Lite's published per-token pricing ($0.25/$1.50 per 1M tokens) as a representative estimate — `GEMINI_MODEL` is a `-latest` alias so its exact resolved price isn't fixed; always returned to the caller clearly as `estimated_cost_usd`, never presented as an exact bill.
+
+**Real bug found and fixed:** `api.py` never called `load_dotenv()`. Every earlier phase's *scripts* loaded `.env` explicitly themselves, so this never surfaced — but the FastAPI app importing `sebisage.api` directly (as a real `uvicorn` server does) would have started with zero API keys available, silently, until the first real request failed. Found by actually starting a local server and hitting `/ask/stream` for real, not by relying on TestClient alone (TestClient tests ran fine throughout, since pytest's own environment or `monkeypatch.setenv` supplied the key in-process). → Fixed with `load_dotenv()` at the top of `api.py`, before any environment reads. → Learned: an in-process test client sharing the test process's environment can hide an env-loading bug that only a genuinely separate process (a real server start) will catch — this is exactly why the roadmap's exit gate asks for "streaming verified with a real local call" on top of the mocked TestClient tests, not instead of them.
+
+**Real local server verification** (not just TestClient): started `uvicorn sebisage.api:app` locally, confirmed `/health` returns real index stats, then ran `/ask/stream` end-to-end with a real question, real API key, real agent graph, real Gemini call — got back correctly ordered SSE events (`route`, ~90 `token` events for the actual grounded answer text, would end with `citations`) with accurate content (reg 30's Schedule III / 24-hour disclosure rule, matching the real regulation).
+
+**Tests:** 89 passed total (10 new for `guardrails.py`, 12 new for `api.py` using FastAPI's `TestClient` with the LLM/retrieval mocked via the same node-level monkeypatching pattern as Phase 5 — auth, guardrail rejection, rate limiting, session persistence across two calls, all 3 SSE event types present, `/sources` 404 and happy path, `/stats` reflecting a recorded query), `ruff check .` clean.
+
+### Phase 6 Exit Gate
+
+- [x] All endpoints tested with FastAPI TestClient (LLM mocked) — `tests/test_api.py`, 12 tests.
+- [x] Streaming verified with a real local call (above).
+- [ ] 🧑 H6: human runs `git add . && git commit && git push`.
+
+**Suggested commit message:**
+```
+phase-6: FastAPI with streaming, guardrails and cost tracking
 ```

@@ -14,6 +14,15 @@ from sebisage.generate.prompts import PROMPT_VERSION
 
 _ROLE_TO_MESSAGE = {"system": SystemMessage, "user": HumanMessage, "assistant": AIMessage}
 
+_cache_hits = 0
+_cache_misses = 0
+
+
+def get_cache_stats() -> dict:
+    """Process-wide disk-cache hit/miss counts, for the API's /stats endpoint."""
+    total = _cache_hits + _cache_misses
+    return {"hits": _cache_hits, "misses": _cache_misses, "hit_rate": round(_cache_hits / total, 4) if total else 0.0}
+
 
 class QuotaExceededError(Exception):
     """Raised when the Gemini API returns a 429; carries a suggested retry delay."""
@@ -97,13 +106,16 @@ class LLMClient:
             raise
 
     def invoke(self, messages: list[dict], prompt_version: str = PROMPT_VERSION) -> LLMResult:
+        global _cache_hits, _cache_misses
         key = _cache_key(self.model_name, prompt_version, messages)
         path = self.cache_dir / f"{key}.json"
         if path.exists():
             data = json.loads(path.read_text(encoding="utf-8"))
             result = LLMResult(text=data["text"], input_tokens=data["input_tokens"], output_tokens=data["output_tokens"], cached=True)
             self.last_usage = {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens}
+            _cache_hits += 1
             return result
+        _cache_misses += 1
 
         lc_messages = _to_langchain_messages(messages)
         try:

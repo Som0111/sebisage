@@ -52,7 +52,13 @@ MEMORY_TURNS = 4
 # --- API ---
 SESSION_TTL_S = 3600
 RATE_LIMIT_PER_MIN = 10
+MAX_QUESTION_CHARS = 2000
+API_KEY_HEADER = "X-API-Key"
 
 # --- Cost estimate (USD per 1K tokens), for display only ---
-COST_PER_1K_INPUT = 0.0
-COST_PER_1K_OUTPUT = 0.0
+# GEMINI_MODEL is an alias ("-latest"), so its exact resolved price varies by
+# provider updates; these are Gemini 3.1 Flash-Lite's published per-1M-token
+# rates ($0.25 in / $1.50 out) as a representative mid-range estimate, not a
+# live-queried price. Always shown to the user/API caller labelled "estimate".
+COST_PER_1K_INPUT = 0.00025
+COST_PER_1K_OUTPUT = 0.0015
