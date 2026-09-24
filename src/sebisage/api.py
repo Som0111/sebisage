@@ -16,6 +16,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
+from sebisage import tracing
 from sebisage.agent.graph import compiled_graph
 from sebisage.config import (
     API_KEY_HEADER,
@@ -149,10 +150,12 @@ def _run_ask(payload: AskRequest, request: Request) -> tuple[dict, str, str, flo
         raise HTTPException(status_code=400, detail=guard.reason)
 
     session_id, history = _get_session(payload.session_id)
-    trace_id = str(uuid.uuid4())
+    trace_id, handler = tracing.new_trace()
+    config = {"callbacks": [handler]} if handler else {}
     t0 = time.perf_counter()
-    result = _get_graph().invoke({"question": guard.text, "messages": history})
+    result = _get_graph().invoke({"question": guard.text, "messages": history}, config=config)
     latency_ms = (time.perf_counter() - t0) * 1000
+    tracing.flush()
 
     _append_turn(session_id, guard.text, result.get("answer"))
     _record_stats(result.get("route"), latency_ms, result.get("usage_total") or {})

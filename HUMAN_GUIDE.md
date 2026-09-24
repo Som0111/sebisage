@@ -16,6 +16,7 @@ Append-only log. Claude Code adds to this file at the end of every phase and at 
 - **Phase 4 done.** LLM wrapper with disk cache (`generate/llm.py`), versioned prompt (`generate/prompts.py`), citation-grounding validator with one auto-retry (`generate/grounding.py`), and the full answer chain (`generate/answer.py`) all built and tested against the real Gemini API. **100% grounding pass rate on all 34 dev questions** — verified this isn't a trivial "refuse everything" result: traced one of the 5 refused-but-answerable questions and confirmed it was a genuine retrieval miss (the correct chunk never made the top 5), not a lazy refusal. Two real bugs found and fixed along the way (content-shape mismatch, a prompt-rule conflict) plus one infra fix (request timeout, after a background run hung indefinitely on a stalled connection). **H4 human spot-check: 10/10 ✅.** Details below.
 - **Phase 5 done.** LangGraph agent built (`agent/state.py`, `agent/nodes.py`, `agent/graph.py`): follow-up rewriting, a 3-stage router (keywords → retrieval confidence → LLM classifier), the Phase 4 RAG chain, DuckDuckGo web search restricted to sebi.gov.in, and a refusal node. **Router accuracy: 100% (34/34) on dev** — 23 questions resolved via the cheap retrieval-confidence fast path, 11 needed the LLM classifier, zero mistakes either way. `REFUSE_THRESHOLD=3.5` calibrated from real dev-set rerank scores. All 3 routes verified end-to-end with real API/search calls, not just mocks. Details below.
 - **Phase 6 done.** `guardrails.py` (length/injection reject, PAN/Aadhaar/phone masking) and `api.py` (`/health`, `/ask`, `/ask/stream`, `/sources/{chunk_id}`, `/stats`) built, with an in-memory session store, per-IP rate limiting, and per-query cost estimation. Streaming verified end-to-end against a real local `uvicorn` server (not just mocked tests). One real gap found and fixed: `api.py` never loaded `.env`, so a real server process would have had no API keys at all — silent until the very first real run. Details below.
+- **Phase 7 done.** `tracing.py` (no-op without keys, wired into `/ask` and `/ask/stream`), `generate/answer_eval.py` (real EvalForge client), and `scripts/run_eval.py` (full end-to-end evaluation) all built and run for real. **Test-set results: router accuracy 100%, grounding pass rate 100%, refusal precision/recall both 100% (n=2 out-of-scope)**, retrieval Recall@5 90.5% (carried over from Phase 3). EvalForge scores obtained on the 3rd real attempt after two genuine "skipped" outcomes (turned out to be a timeout, not unreachability — 17 items took 138s against a 60s default). 2 real Langfuse traces generated (one per route), **human-confirmed visible**. Details below.
 
 ---
 
@@ -62,6 +63,7 @@ Record the "last amended" date shown on each PDF in the table below once downloa
 - **2026-09-22** — Bugfix found while building the dense index (Phase 2): `chromadb.add()` rejected `chunks_structured.jsonl` with a `DuplicateIDError` on `lodr_2015.pdf:SCHEDULE_IV:*`. Cause: LODR's Schedule IV is printed as two separate "SCHEDULE IV" headings (Part A, Part B), so the chunker treated it as two schedules and both id counters restarted at 0. Fixed by merging consecutive schedule headings with the same label into one span before chunking (`ingest/chunk.py::structured_chunks`). Chunk count dropped from 1,901 to 1,900 (re-ran `scripts/build_chunks.py`); re-verified no duplicate ids across both chunk files before rebuilding the index.
 - **2026-09-22** — Dense index: `BAAI/bge-small-en-v1.5` via `sentence-transformers`, queries prefixed with the model's documented instruction (`"Represent this sentence for searching relevant passages: "`), documents unprefixed. Stored in Chroma, one persistent collection per chunker (`sebisage_structured`, `sebisage_fixed`) at `storage/chroma/`. Rebuild is delete-collection-then-recreate (not upsert), so a rebuild always exactly matches current `data/processed/` content — verified idempotent by building twice and comparing counts (1,900 / 307 both times) and BM25 pickle bytes (identical both runs).
 - **2026-09-22** — Sparse index tokenizer keeps identifiers like `"30(6)"` and `"kmp"` intact (regex `[a-z0-9()]+` on lowercased text) instead of splitting on punctuation, since legal citations depend on exact tokens BM25 would otherwise fragment.
+- **2026-09-24** — `/ask`'s `trace_id` is a real Langfuse trace id, not a decorative one. Phase 6 originally returned `str(uuid.uuid4())`, unrelated to anything Langfuse actually recorded — a support engineer couldn't have used it to find the trace. Fixed at Phase 7 by pre-generating the trace id via `langfuse.get_client().create_trace_id()` and passing it into `CallbackHandler(trace_context={"trace_id": ...})` *before* invoking the graph, so the id returned to the API caller is guaranteed to match what Langfuse recorded (`tracing.py::new_trace()`).
 
 ---
 
@@ -384,4 +386,55 @@ phase-5: LangGraph agent with routing and follow-up memory
 **Suggested commit message:**
 ```
 phase-6: FastAPI with streaming, guardrails and cost tracking
+```
+
+---
+
+## Phase 7 — Observability and End-to-End Evaluation
+
+**What was built:**
+- `tracing.py` — `new_trace()` pre-generates a real Langfuse trace id via `client.create_trace_id()` and returns it alongside a `CallbackHandler(trace_context={"trace_id": ...})`, so the `trace_id` the API returns to a caller is the *actual* Langfuse trace id (not an unrelated local UUID — see Decisions). Returns `(uuid4, None)` when `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY` aren't set, so every caller gets a usable id regardless, and no callback gets attached when tracing is off. Wired into `api.py::_run_ask()`: the graph is invoked with `config={"callbacks": [handler]}` when tracing is enabled, and `tracing.flush()` is called after each request so traces show up promptly rather than waiting for the batch timer.
+- `generate/answer_eval.py` — real EvalForge client (`/evaluate/batch`, confirmed against the live OpenAPI spec and a real call: max 50 items/batch, `X-API-Key` header, returns per-item `scores` + nullable `judge`). One retry after a fixed wait on any `httpx` error, then returns `{"status": "skipped", ...}` — never raises.
+- `scripts/run_eval.py` — runs the full compiled agent graph over all 23 **test** questions for real (routing + generation + grounding), combines that with Phase 3's retrieval-test numbers and Phase 5's dev router accuracy, computes refusal precision/recall and grounding pass rate freshly on test, calls EvalForge for the answered subset, and writes `reports/e2e_test.json` + `reports/EVAL_REPORT.md`.
+
+**Real Langfuse traces** (2, one per route — H checkpoint below):
+- regulation route: https://cloud.langfuse.com/project/cmucxhr3w02rzad0c1p1jrluc/traces/a169c0c121f7f3831d2cab38fc2e3139
+- out_of_scope route: https://cloud.langfuse.com/project/cmucxhr3w02rzad0c1p1jrluc/traces/6625473720c883ee67649e86c069a8c5
+
+**EvalForge: 2 genuine "skipped" results before a real success — not a shortcut.** The full `run_eval.py` run recorded `evalforge: {"status": "skipped", "reason": "unreachable after retry"}` after its built-in retry-after-cold-start logic ran for real and still failed. Rather than accept that immediately, retried EvalForge alone (cheap — the expensive 23 graph calls were already done and didn't need repeating) with a longer timeout, which revealed the real cause: not unreachability, a plain timeout — scoring 17 items took 138 real seconds against my 60s default. Patched `reports/e2e_test.json`'s `evalforge` field with the real result once obtained. This is exactly the kind of thing the roadmap's "retry after cold start, then skip rather than crash" guidance exists for — the difference here is I had the option to retry cheaply after the fact because the answers were already generated and didn't need to be paid for (in latency or quota) twice.
+
+**Test-set results** (`reports/e2e_test.json`, `reports/EVAL_REPORT.md`):
+
+| Metric | Value |
+|---|---|
+| Retrieval Recall@5 / MRR@10 (Phase 3, test) | 0.905 / 0.747 |
+| Router accuracy (test) | **1.0** (23/23) |
+| Refusal precision / recall (test, n=2 out-of-scope) | 1.0 / 1.0 |
+| Grounding pass rate (test, regulation-routed, n=21) | **1.0** |
+| EvalForge mean scores (17 answered items) | length 0.884, keyword_overlap 0.706, format 0.682, relevance 0.817 |
+| EvalForge judge | unavailable on all 17 (judge-step failure independent of the other scores — treated as a caveated secondary signal per the roadmap, not fabricated) |
+| Latency p50 / p95 | 35,382ms / 79,836ms |
+| Mean tokens in/out | 899 / 64 |
+| Mean estimated cost/query | $0.00032 |
+| LLM disk-cache hit rate (this run) | 0.0 (expected — all 23 test questions were being asked through the full chain for the first time) |
+
+**Honest note on latency:** p50/p95 here (35s/80s) are far higher than Phase 6's per-endpoint numbers because this run used config E (hybrid + rerank, the Phase 3 winner) for every single question with a cold cache — the same reranker latency cost flagged back in Phase 3's ablation (`HUMAN_GUIDE.md` Phase 3 section) shows up again here at full scale. Not a new finding, the same one, now visible end-to-end.
+
+**Honest note on the 21-vs-17 gap:** 21 of 23 test questions routed to `regulation`, but only 17 produced an actual answer — 4 said `INSUFFICIENT_CONTEXT` and were excluded from EvalForge scoring (nothing meaningful to score). This matches Phase 4's dev-set finding exactly: some genuinely answerable questions get correctly refused because retrieval doesn't surface the right chunk, not because generation is broken. Grounding pass rate (1.0) is measured over all 21 regulation-routed rows including those 4 refusals, since `check_grounding()` correctly treats `INSUFFICIENT_CONTEXT` as grounded (no false citation to hallucinate).
+
+### 🧑 HUMAN CHECKPOINT — confirm Langfuse traces are visible — ✅ done
+
+Confirmed by human: both trace URLs show the span tree with per-node detail as expected.
+
+### Phase 7 Exit Gate
+
+- [x] Langfuse traces visible — confirmed by human above.
+- [x] `EVAL_REPORT.md` generated from real runs only (no fabricated numbers; the EvalForge section reflects an actual 3rd-attempt success, not a smoothed-over retry).
+- [x] `private/PROJECT_EXPLAINED.md` → *Key Results* updated with final numbers.
+- [x] All tests pass (98/98), ruff clean.
+- [ ] 🧑 H6: human runs `git add . && git commit && git push`.
+
+**Suggested commit message:**
+```
+phase-7: Langfuse tracing and end-to-end evaluation
 ```

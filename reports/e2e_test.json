@@ -1,0 +1,625 @@
+{
+  "n_test": 23,
+  "retrieval_test": {
+    "recall_at_1": 0.6190476190476191,
+    "recall_at_3": 0.8571428571428571,
+    "recall_at_5": 0.9047619047619048,
+    "mrr_at_10": 0.7468253968253968
+  },
+  "router_accuracy_dev": 1.0,
+  "router_accuracy_test": 1.0,
+  "refusal_precision_test": 1.0,
+  "refusal_recall_test": 1.0,
+  "grounding_pass_rate_test": 1.0,
+  "n_regulation_routed": 21,
+  "evalforge": {
+    "status": "ok",
+    "n_items": 17,
+    "n_failed": 17,
+    "mean_scores": {
+      "format": 0.6824,
+      "relevance": 0.8172,
+      "length": 0.8838,
+      "keyword_overlap": 0.7059
+    },
+    "n_judged": 0,
+    "judge_note": "EvalForge's LLM-judge scores are a secondary, caveated signal only - EvalForge's own inter-annotator kappa for its judge was low. Rule-based (length, keyword_overlap, format) and embedding (relevance) scores are the primary signal here.",
+    "per_item": [
+      {
+        "id": "q005",
+        "scores": {
+          "length": 1.0,
+          "keyword_overlap": 0.6,
+          "format": 1.0,
+          "relevance": 0.8097653388977051
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q037",
+        "scores": {
+          "length": 0.7875,
+          "keyword_overlap": 0.8,
+          "format": 1.0,
+          "relevance": 0.8966123461723328
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q013",
+        "scores": {
+          "length": 0.925,
+          "keyword_overlap": 0.6,
+          "format": 0.4,
+          "relevance": 0.8525456190109253
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q043",
+        "scores": {
+          "length": 1.0,
+          "keyword_overlap": 0.6,
+          "format": 1.0,
+          "relevance": 0.7997691035270691
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q020",
+        "scores": {
+          "length": 0.4125,
+          "keyword_overlap": 0.8,
+          "format": 0.0,
+          "relevance": 0.7963643670082092
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q018",
+        "scores": {
+          "length": 1.0,
+          "keyword_overlap": 0.8,
+          "format": 1.0,
+          "relevance": 0.9092811942100525
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q032",
+        "scores": {
+          "length": 1.0,
+          "keyword_overlap": 0.6,
+          "format": 0.4,
+          "relevance": 0.7478882074356079
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q002",
+        "scores": {
+          "length": 1.0,
+          "keyword_overlap": 0.8,
+          "format": 1.0,
+          "relevance": 0.83347088098526
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q046",
+        "scores": {
+          "length": 0.525,
+          "keyword_overlap": 0.6,
+          "format": 0.4,
+          "relevance": 0.7633048295974731
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q054",
+        "scores": {
+          "length": 1.0,
+          "keyword_overlap": 0.4,
+          "format": 1.0,
+          "relevance": 0.7459772229194641
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q003",
+        "scores": {
+          "length": 1.0,
+          "keyword_overlap": 0.4,
+          "format": 1.0,
+          "relevance": 0.8323284983634949
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q038",
+        "scores": {
+          "length": 1.0,
+          "keyword_overlap": 1.0,
+          "format": 1.0,
+          "relevance": 0.7252811789512634
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q009",
+        "scores": {
+          "length": 0.8875,
+          "keyword_overlap": 1.0,
+          "format": 0.8,
+          "relevance": 0.8097935914993286
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q001",
+        "scores": {
+          "length": 0.9375,
+          "keyword_overlap": 0.6,
+          "format": 0.0,
+          "relevance": 0.8554574251174927
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q008",
+        "scores": {
+          "length": 0.8125,
+          "keyword_overlap": 0.8,
+          "format": 0.0,
+          "relevance": 0.8436453342437744
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q044",
+        "scores": {
+          "length": 1.0,
+          "keyword_overlap": 0.8,
+          "format": 1.0,
+          "relevance": 0.828719437122345
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      },
+      {
+        "id": "q028",
+        "scores": {
+          "length": 0.7375,
+          "keyword_overlap": 0.8,
+          "format": 0.6,
+          "relevance": 0.8428146243095398
+        },
+        "judge": null,
+        "judge_prompt_version": "v2",
+        "judge_model": "gemini-3.6-flash"
+      }
+    ]
+  },
+  "latency_ms_p50": 35381.5,
+  "latency_ms_p95": 79836.1,
+  "mean_input_tokens": 898.6,
+  "mean_output_tokens": 63.8,
+  "mean_cost_usd_estimate": 0.00032,
+  "cache_hit_rate_this_run": 0.0,
+  "per_question": [
+    {
+      "id": "q005",
+      "type": "deadline",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "The board of directors of a listed entity must meet at least four times in a financial year [1], [2]. The maximum time gap allowed between any two consecutive meetings is one hundred and twenty days [1], [2].\n\nSource: [1], [2]",
+      "citations": [
+        "lodr_2015.pdf:17:2:0",
+        "lodr_2015.pdf:62D:6-7:0"
+      ],
+      "usage": {
+        "input_tokens": 933,
+        "output_tokens": 55
+      },
+      "latency_ms": 79836.10790001694
+    },
+    {
+      "id": "q037",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "An investment adviser must maintain Know Your Client records, risk profiling and risk assessment records, and suitability assessments of the advice provided [1]. They must also keep copies of agreements with clients containing specified terms and conditions, written or oral investment advice, and duly signed and dated rationales for the advice [1]. Additionally, advisers must maintain a client register or record containing PANs, advice dates, the nature of advice, product or security details, and any fees or consideration charged, along with communication records such as emails and call recordings with clients and prospective clients [1].\n\nSource: [1]",
+      "citations": [
+        "ia_2013.pdf:19:1:0"
+      ],
+      "usage": {
+        "input_tokens": 1512,
+        "output_tokens": 119
+      },
+      "latency_ms": 47547.85020009149
+    },
+    {
+      "id": "q041",
+      "type": "deadline",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "INSUFFICIENT_CONTEXT",
+      "citations": [],
+      "usage": {
+        "input_tokens": 1020,
+        "output_tokens": 6
+      },
+      "latency_ms": 57872.10609996691
+    },
+    {
+      "id": "q013",
+      "type": "deadline",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "A listed entity must first disclose events or information specified in Part E of Schedule III to the stock exchange as soon as reasonably possible, and no later than twenty-four hours from the event or information's occurrence [1]. If the disclosure happens after twenty-four hours, the entity must provide an explanation for the delay [1]. Additionally, the listed entity must promptly inform the stock exchange of all events that are material, price sensitive, and/or have a bearing on its performance or operations [4].\n\nSource: [1], [4]",
+      "citations": [
+        "lodr_2015.pdf:87B:1:0",
+        "lodr_2015.pdf:68:1-2:0"
+      ],
+      "usage": {
+        "input_tokens": 726,
+        "output_tokens": 111
+      },
+      "latency_ms": 26871.043000021018
+    },
+    {
+      "id": "q043",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "The personal trading activities of individuals employed as research analysts by a research entity must be monitored, recorded, and subjected to a formal approval process whenever necessary [1].\n\nSource: [1]",
+      "citations": [
+        "ra_2014.pdf:16:1-2:0"
+      ],
+      "usage": {
+        "input_tokens": 792,
+        "output_tokens": 38
+      },
+      "latency_ms": 40593.31589995418
+    },
+    {
+      "id": "q020",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "The responsibility for formulating a code of conduct to regulate trading by designated persons depends on the type of organization:\n\n- For listed companies and intermediaries, the chief executive officer or managing director must formulate the code with the approval of the board of directors of the listed company or the board of directors/head(s) of the organisation of the intermediary [3].\n- For every asset management company, the chief executive officer or managing director must formulate the code with the approval of its board of directors [4].\n- For every other person or organisation required to handle unpublished price sensitive information in the course of business operations, the board of directors or head(s) of the organisation must formulate the code [1], [2].\n\nSource: [1], [2], [3], [4]",
+      "citations": [
+        "pit_2015.pdf:9:2:0",
+        "pit_2015.pdf:5F:2-3:0",
+        "pit_2015.pdf:9:1:0",
+        "pit_2015.pdf:5F:1:0"
+      ],
+      "usage": {
+        "input_tokens": 1428,
+        "output_tokens": 160
+      },
+      "latency_ms": 42428.17329999525
+    },
+    {
+      "id": "q018",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "An insider cannot communicate, provide, or allow access to unpublished price sensitive information to any person, including other insiders, except when the communication is done in furtherance of legitimate purposes, the performance of duties, or the discharge of legal obligations [1], [2].\n\nSource: [1], [2]",
+      "citations": [
+        "pit_2015.pdf:5C:1:0",
+        "pit_2015.pdf:3:1:0"
+      ],
+      "usage": {
+        "input_tokens": 1012,
+        "output_tokens": 61
+      },
+      "latency_ms": 29476.203799946234
+    },
+    {
+      "id": "q032",
+      "type": "definition",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "Volume weighted average price is defined as the product of the number of equity shares bought and the price of each such equity share, divided by the total number of equity shares bought [1].\n\nSource: [1]",
+      "citations": [
+        "sast_2011.pdf:2:2:28"
+      ],
+      "usage": {
+        "input_tokens": 629,
+        "output_tokens": 43
+      },
+      "latency_ms": 30089.261600049213
+    },
+    {
+      "id": "q056",
+      "type": "out_of_scope",
+      "expected_route": "out_of_scope",
+      "route": "out_of_scope",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "I can only answer questions about five SEBI regulations: Listing Obligations and Disclosure Requirements (LODR), Prohibition of Insider Trading (PIT), Substantial Acquisition of Shares and Takeovers (SAST), Investment Advisers (IA), and Research Analysts (RA). Your question doesn't appear to be about these - could you rephrase it, or ask about one of these regulations instead?",
+      "citations": [],
+      "usage": {},
+      "latency_ms": 25381.29749998916
+    },
+    {
+      "id": "q002",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "A listed entity must appoint a qualified company secretary as the compliance officer [1]. This officer must be in the whole-time employment of the listed entity, hold a position not more than one level below the board of directors, and be designated as a Key Managerial Personnel [1].\n\nSource: [1]",
+      "citations": [
+        "lodr_2015.pdf:6:1:0"
+      ],
+      "usage": {
+        "input_tokens": 1060,
+        "output_tokens": 63
+      },
+      "latency_ms": 27714.500200003386
+    },
+    {
+      "id": "q046",
+      "type": "deadline",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "A listed entity must first disclose material events or information to the stock exchange(s) as soon as reasonably possible, and in any case no later than thirty minutes from the closure of the board of directors' meeting in which the decision was taken [4]. If the board meeting closes after normal trading hours but more than three hours before the next trading day's normal hours, the disclosure must be made within three hours of the meeting's closure [4]. For multi-day board meetings, financial results must be disclosed within thirty minutes or three hours, as applicable, from the closure of that day's meeting [4]. Additionally, stock exchanges shall forthwith disseminate such information to the public [1].\n\nSource: [1], [4]",
+      "citations": [
+        "sast_2011.pdf:14:1-2:0",
+        "lodr_2015.pdf:30:6:0"
+      ],
+      "usage": {
+        "input_tokens": 1043,
+        "output_tokens": 150
+      },
+      "latency_ms": 93103.3894000575
+    },
+    {
+      "id": "q054",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "Independent research analysts, part-time research analysts, and individuals employed as research analysts or their associates are prohibited from dealing or trading directly or indirectly in securities they review in a manner that contradicts their given recommendation [3]. Therefore, they cannot trade against their own 'buy' call [3].\n\nSource: [3]",
+      "citations": [
+        "ra_2014.pdf:16:3-4:0"
+      ],
+      "usage": {
+        "input_tokens": 1037,
+        "output_tokens": 64
+      },
+      "latency_ms": 49053.289900068194
+    },
+    {
+      "id": "q033",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "INSUFFICIENT_CONTEXT",
+      "citations": [],
+      "usage": {
+        "input_tokens": 833,
+        "output_tokens": 6
+      },
+      "latency_ms": 51340.05420003086
+    },
+    {
+      "id": "q003",
+      "type": "deadline",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "A listed entity must redress investor grievances promptly, and no later than twenty-one calendar days from the date of receipt of the grievance [1].\n\nSource: [1]",
+      "citations": [
+        "lodr_2015.pdf:13:1-2:0"
+      ],
+      "usage": {
+        "input_tokens": 667,
+        "output_tokens": 35
+      },
+      "latency_ms": 35381.46669999696
+    },
+    {
+      "id": "q058",
+      "type": "out_of_scope",
+      "expected_route": "out_of_scope",
+      "route": "out_of_scope",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "I can only answer questions about five SEBI regulations: Listing Obligations and Disclosure Requirements (LODR), Prohibition of Insider Trading (PIT), Substantial Acquisition of Shares and Takeovers (SAST), Investment Advisers (IA), and Research Analysts (RA). Your question doesn't appear to be about these - could you rephrase it, or ask about one of these regulations instead?",
+      "citations": [],
+      "usage": {},
+      "latency_ms": 57405.58040002361
+    },
+    {
+      "id": "q053",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "INSUFFICIENT_CONTEXT",
+      "citations": [],
+      "usage": {
+        "input_tokens": 1117,
+        "output_tokens": 6
+      },
+      "latency_ms": 46450.40400000289
+    },
+    {
+      "id": "q038",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "An individual investment adviser shall not provide distribution services [1].\n\nSource: [1]",
+      "citations": [
+        "ia_2013.pdf:22:1-2:0"
+      ],
+      "usage": {
+        "input_tokens": 828,
+        "output_tokens": 18
+      },
+      "latency_ms": 22288.753199973144
+    },
+    {
+      "id": "q055",
+      "type": "threshold",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "INSUFFICIENT_CONTEXT",
+      "citations": [],
+      "usage": {
+        "input_tokens": 1172,
+        "output_tokens": 6
+      },
+      "latency_ms": 47661.98360000271
+    },
+    {
+      "id": "q009",
+      "type": "penalty",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "A listed entity or any other person thereof who contravenes any provision of the regulations is liable for actions by the respective stock exchange(s) including the imposition of fines, suspension of trading, freezing of promoter or promoter group holding of designated securities in coordination with depositories, and any other action specified by the Board from time to time [1]. Furthermore, if a listed entity fails to pay any imposed fine within the specified period after receiving a written notice, the stock exchange may initiate action [2].\n\nSource: [1], [2]",
+      "citations": [
+        "lodr_2015.pdf:98:1:0",
+        "lodr_2015.pdf:99:None:0"
+      ],
+      "usage": {
+        "input_tokens": 1044,
+        "output_tokens": 109
+      },
+      "latency_ms": 20090.586200007237
+    },
+    {
+      "id": "q001",
+      "type": "definition",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "Under Regulation 16, a \"material subsidiary\" means a subsidiary whose turnover or net worth exceeds ten percent of the consolidated turnover or net worth, respectively, of the listed entity and its subsidiaries in the immediately preceding accounting year [1]. Additionally, for the purposes of regulations regarding independent directors on unlisted material subsidiaries, the term means a subsidiary whose turnover or net worth exceeds twenty percent of the consolidated turnover or net worth, respectively, in the immediately preceding accounting year [2], [3].\n\nSource: [1], [2], [3]",
+      "citations": [
+        "lodr_2015.pdf:16:2:4",
+        "lodr_2015.pdf:62L:1:0",
+        "lodr_2015.pdf:24:1:0"
+      ],
+      "usage": {
+        "input_tokens": 676,
+        "output_tokens": 111
+      },
+      "latency_ms": 27152.349499985576
+    },
+    {
+      "id": "q008",
+      "type": "deadline",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "A listed entity must submit its shareholding pattern statement to the stock exchange:\n(a) one day prior to listing of its securities [1];\n(b) on a quarterly basis, within twenty-one days from the end of each quarter [1]; and\n(c) within ten days of any capital restructuring resulting in a change exceeding two per cent of the total paid-up share capital [1]. \nFor listed entities with specified securities listed on an SME Exchange, the statement must be submitted on a half-yearly basis within twenty-one days from the end of each half year [1].\n\nSource: [1]",
+      "citations": [
+        "lodr_2015.pdf:31:1:0"
+      ],
+      "usage": {
+        "input_tokens": 867,
+        "output_tokens": 130
+      },
+      "latency_ms": 20253.965600044467
+    },
+    {
+      "id": "q044",
+      "type": "obligation",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "No, independent research analysts, part-time research analysts, and individuals employed as research analysts by a research entity or their associates are prohibited from dealing or trading directly or indirectly in securities that they review in a manner contrary to their given recommendation [1].\n\nSource: [1]",
+      "citations": [
+        "ra_2014.pdf:16:3-4:0"
+      ],
+      "usage": {
+        "input_tokens": 924,
+        "output_tokens": 56
+      },
+      "latency_ms": 18866.733100032434
+    },
+    {
+      "id": "q028",
+      "type": "threshold",
+      "expected_route": "regulation",
+      "route": "regulation",
+      "grounded": true,
+      "grounding_flags": [],
+      "answer": "An open offer made by an acquirer and persons acting in concert under regulation 3 and regulation 4 must be for at least twenty-six per cent of the total shares of the target company, as of the tenth working day from the closure of the tendering period [1]. This calculation takes into account all potential increases in outstanding shares during the offer period that were contemplated as of the public announcement date [1]. Furthermore, if the total number of shares increases after the public announcement and this increase was not contemplated, the offer size must be proportionately increased [1].\n\nSource: [1]",
+      "citations": [
+        "sast_2011.pdf:7:1:0"
+      ],
+      "usage": {
+        "input_tokens": 1348,
+        "output_tokens": 120
+      },
+      "latency_ms": 14992.906700004824
+    }
+  ]
+}
