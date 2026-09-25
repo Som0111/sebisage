@@ -54,6 +54,19 @@ SESSION_TTL_S = 3600
 RATE_LIMIT_PER_MIN = 10
 MAX_QUESTION_CHARS = 2000
 API_KEY_HEADER = "X-API-Key"
+API_PORT = 8000  # matches Phase 9's Docker layout (API 8000, UI 7860)
+UI_PORT = 7860
+
+# --- UI ---
+COVERED_REGULATIONS = ["LODR", "PIT", "SAST", "IA", "RA"]
+EXAMPLE_QUESTIONS = [
+    "When must a listed company disclose a material event?",
+    "What is a 'connected person' under the PIT Regulations?",
+    "At what shareholding threshold must an acquirer make an open offer?",
+    "For how long must an investment adviser preserve its records?",
+    "What must a research analyst maintain records of?",
+    "What is the current repo rate set by the Reserve Bank of India?",
+]
 
 # --- Cost estimate (USD per 1K tokens), for display only ---
 # GEMINI_MODEL is an alias ("-latest"), so its exact resolved price varies by

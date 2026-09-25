@@ -18,6 +18,7 @@ src/sebisage/eval/answer_eval.py
 src/sebisage/eval/retrieval_eval.py
 src/sebisage/generate/__init__.py
 src/sebisage/generate/answer.py
+src/sebisage/generate/answer_eval.py
 src/sebisage/generate/grounding.py
 src/sebisage/generate/llm.py
 src/sebisage/generate/prompts.py
@@ -31,3 +32,19 @@ src/sebisage/ingest/schema.py
 src/sebisage/retrieve/__init__.py
 src/sebisage/retrieve/hybrid.py
 src/sebisage/retrieve/rerank.py
+tests/test_answer.py
+tests/test_answer_eval.py
+tests/test_api.py
+tests/test_chunk.py
+tests/test_dense.py
+tests/test_graph.py
+tests/test_grounding.py
+tests/test_guardrails.py
+tests/test_hybrid.py
+tests/test_llm.py
+tests/test_nodes.py
+tests/test_parse_pdf.py
+tests/test_rerank.py
+tests/test_retrieval_eval.py
+tests/test_sparse.py
+tests/test_tracing.py

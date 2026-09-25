@@ -17,6 +17,7 @@ Append-only log. Claude Code adds to this file at the end of every phase and at 
 - **Phase 5 done.** LangGraph agent built (`agent/state.py`, `agent/nodes.py`, `agent/graph.py`): follow-up rewriting, a 3-stage router (keywords → retrieval confidence → LLM classifier), the Phase 4 RAG chain, DuckDuckGo web search restricted to sebi.gov.in, and a refusal node. **Router accuracy: 100% (34/34) on dev** — 23 questions resolved via the cheap retrieval-confidence fast path, 11 needed the LLM classifier, zero mistakes either way. `REFUSE_THRESHOLD=3.5` calibrated from real dev-set rerank scores. All 3 routes verified end-to-end with real API/search calls, not just mocks. Details below.
 - **Phase 6 done.** `guardrails.py` (length/injection reject, PAN/Aadhaar/phone masking) and `api.py` (`/health`, `/ask`, `/ask/stream`, `/sources/{chunk_id}`, `/stats`) built, with an in-memory session store, per-IP rate limiting, and per-query cost estimation. Streaming verified end-to-end against a real local `uvicorn` server (not just mocked tests). One real gap found and fixed: `api.py` never loaded `.env`, so a real server process would have had no API keys at all — silent until the very first real run. Details below.
 - **Phase 7 done.** `tracing.py` (no-op without keys, wired into `/ask` and `/ask/stream`), `generate/answer_eval.py` (real EvalForge client), and `scripts/run_eval.py` (full end-to-end evaluation) all built and run for real. **Test-set results: router accuracy 100%, grounding pass rate 100%, refusal precision/recall both 100% (n=2 out-of-scope)**, retrieval Recall@5 90.5% (carried over from Phase 3). EvalForge scores obtained on the 3rd real attempt after two genuine "skipped" outcomes (turned out to be a timeout, not unreachability — 17 items took 138s against a 60s default). 2 real Langfuse traces generated (one per route), **human-confirmed visible**. Details below.
+- **Phase 8 done.** `ui/app.py` built (chat + streamed answer, citations panel with per-source expandable text, disclaimer banner, 6 example questions, "Clear conversation", route/grounded badges, friendly error handling for cold-start/rate-limit/auth failures). Verified real: API and Streamlit both start cleanly with no import/runtime errors, the UI's actual SSE-parsing + citation-fetch logic was exercised end-to-end against the real live API, and the human confirmed the rendered layout matches (`docs/ui.png`). One real bug found and fixed: an over-eager `.strip()` on the SSE `data:` line was eating the trailing space each token carries, mashing every word together with no spaces. Details below.
 
 ---
 
@@ -437,4 +438,37 @@ Confirmed by human: both trace URLs show the span tree with per-node detail as e
 **Suggested commit message:**
 ```
 phase-7: Langfuse tracing and end-to-end evaluation
+```
+
+---
+
+## Phase 8 — Streamlit UI
+
+**What was built** (`ui/app.py`):
+- **Layout:** left column is chat (question box via `st.chat_input`, streamed answer via `st.write_stream`, full conversation history); right column is the citations panel; top has the required disclaimer banner ("educational project — not legal or investment advice") and a `LODR` `PIT` `SAST` `IA` `RA` chip list; sidebar has 6 clickable example questions (5 answerable across different regulations + 1 deliberately out-of-scope, to demo refusal) and a "Clear conversation" button that also rotates the session id.
+- **Citations panel:** each citation shows as an expander labelled `<regulation> · Reg <reg_no> · p.<page>`; opening it calls `GET /sources/{chunk_id}` live to show the exact source text (not cached from the answer response) — for web-search citations (plain URLs, no `regulation` field) it renders a link instead of calling `/sources`.
+- **Badges:** route and grounded ✅/⚠️ shown under each assistant message (latency/tokens are available in the API response but weren't added as separate badges — kept to what the roadmap listed, not scope-creeped further).
+- **Streaming:** genuinely consumes `/ask/stream`'s SSE events (not a fake replay) — a generator parses `route`/`token`/`citations` events, feeds the `token` stream into `st.write_stream`, and stashes the side-channel `route`/`citations` payloads into `st.session_state` as they arrive.
+- **Error handling:** distinct friendly messages for a timeout (cold start), 429 (rate limit), 401 (bad/missing key), 400 (guardrail rejection), and connection refused (API not running) — matches the roadmap's "cold start, rate limit, refusal" list plus the auth/guardrail cases the API can actually return.
+
+**Real bug found and fixed:** the SSE line parser did `line.split(":", 1)[1].strip()` on `data:` lines. That's correct for the `route`/`citations` events (JSON payloads, whitespace-insensitive) but wrong for `token` events — `api.py` intentionally sends each token as `"word "` (trailing space, so words don't run together when concatenated), and a full `.strip()` ate that trailing space along with the SSE protocol's leading one. Result: the rendered answer would have shown as `"Alistedentitymustdisclose..."` — no spaces at all. → Found by actually exercising `stream_answer()`'s logic against the real running API rather than just checking the page loaded. → Fixed with `.removeprefix(" ")` instead of `.strip()` — drops only the one protocol space, keeps the content's trailing space intact. → Re-verified against the real API: correct spacing confirmed.
+
+**What was and wasn't verified — read this before trusting "it works":**
+- ✅ Verified for real: the API and Streamlit servers both start cleanly with no import or runtime errors (`streamlit run ui/app.py` on port 7860, `uvicorn` on port 8000, both returned HTTP 200). The UI's actual networking logic — SSE parsing, token accumulation, citation fetching — was exercised directly against the real live API (not mocked) and produced a correct, properly-spaced, correctly-cited real answer, exactly the code path the real UI runs.
+- ❌ **Not verified:** the rendered page's visual layout, button clicks (example questions, "Clear conversation"), the citations panel's actual on-screen appearance, or general UX polish. No Playwright/browser tool was available in this session (checked via `ToolSearch`, none connected) and `WebFetch` can't reach `localhost`. Saying this plainly rather than claiming a click-through that didn't happen.
+
+### 🧑 HUMAN CHECKPOINT — manual click-through + screenshot — ✅ done
+
+Human confirmed and provided `docs/ui.png`: sidebar with 6 example questions + "Clear conversation", disclaimer banner, regulation chips, chat input, and the citations panel correctly showing "No citations for this answer." in the initial empty state — matches the intended layout exactly.
+
+### Phase 8 Exit Gate
+
+- [x] Runs locally with `streamlit run ui/app.py` (server-level verification + human-confirmed visual layout).
+- [x] Screenshot saved to `docs/ui.png`.
+- [x] All tests pass (98/98), ruff clean.
+- [ ] 🧑 H6: human runs `git add . && git commit && git push`.
+
+**Suggested commit message:**
+```
+phase-8: Streamlit UI with citations panel
 ```

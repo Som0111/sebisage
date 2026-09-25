@@ -20,6 +20,7 @@ Requires-Dist: langfuse
 Requires-Dist: streamlit
 Requires-Dist: python-dotenv
 Requires-Dist: httpx
+Requires-Dist: matplotlib
 Provides-Extra: dev
 Requires-Dist: pytest; extra == "dev"
 Requires-Dist: ruff; extra == "dev"

@@ -15,6 +15,7 @@ langfuse
 streamlit
 python-dotenv
 httpx
+matplotlib
 
 [dev]
 pytest
