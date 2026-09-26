@@ -25,11 +25,13 @@ dependencies = [
     "streamlit",
     "python-dotenv",
     "httpx",
-    "matplotlib",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+# matplotlib is only used by scripts/run_ablation.py to render a figure - not
+# imported anywhere in the runtime path (src/, ui/, api). Keeping it out of the
+# base deps keeps it out of the deployed image.
+dev = ["pytest", "ruff", "matplotlib"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

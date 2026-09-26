@@ -6,7 +6,7 @@ Agentic RAG over five Indian SEBI securities regulations — LODR, PIT, SAST, IA
 
 ## Status
 
-Built and verified end-to-end locally (Docker build/run, full test suite, CI). **Not currently deployed to a public URL** — the original plan (Hugging Face Spaces free tier) turned out to require a paid plan on the account used to build this, and the fallback (Oracle Cloud Always Free) needs a card on file for identity verification, which wasn't available. Real memory testing under load (~793.5MiB peak, see `HUMAN_GUIDE.md` Phase 9) shows the app is well within reach of most free tiers once one is accessible — the image is Docker-ready and CI-verified, just not hosted. See [Run locally](#run-locally) to try it yourself.
+Built and verified end-to-end locally (Docker build/run, full test suite, CI). **Not currently deployed to a public URL** — the original plan (Hugging Face Spaces free tier) turned out to require a paid plan on the account used to build this, and the fallback (Oracle Cloud Always Free) needs a card on file for identity verification, which wasn't available. Real memory testing under load (~793.5MiB peak, see `HUMAN_GUIDE.md` Phase 9) shows the app is well within reach of most free tiers once one is accessible. The image itself is 3.28GB (down from 3.6GB after moving model downloads to container startup and trimming an offline-only dependency) — getting it under 1GB would need swapping out torch/Chroma/Streamlit for lighter alternatives, a real architecture change rather than a packaging tweak, so it wasn't pursued. The image is Docker-ready and CI-verified, just not hosted. See [Run locally](#run-locally) to try it yourself.
 
 ## Architecture
 
