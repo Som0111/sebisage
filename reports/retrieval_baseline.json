@@ -1,0 +1,8 @@
+{
+  "config": "E (structured, hybrid RRF + rerank)",
+  "recorded_at": "2026-09-22",
+  "source": "reports/retrieval_ablation_dev.json (Phase 3 ablation study)",
+  "n_dev": 34,
+  "mrr_at_10": 0.7619047619047619,
+  "recall_at_5": 0.8709677419354839
+}

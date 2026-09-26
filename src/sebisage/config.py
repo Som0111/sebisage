@@ -40,6 +40,7 @@ REFUSE_THRESHOLD = 3.5  # set at Phase 5.3 from dev-set top rerank scores (see H
 # --- Eval ---
 EVAL_SPLIT_SEED = 42
 EVAL_DEV_FRACTION = 0.6
+GATE_TOLERANCE = 0.05  # CI retrieval gate: allowed MRR@10 drop below reports/retrieval_baseline.json
 
 # --- Generation ---
 ANSWER_MAX_WORDS = 150
