@@ -56,7 +56,24 @@ def test_health_requires_no_api_key(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
-    assert "generation_model" in body
+    assert "llm_model" in body
+    assert body["index_type"] == "chroma + bm25"
+    assert body["n_chunks_structured"] > 0
+    assert body["bm25_index_present"] is True
+    assert body["demo_mode"] is False
+    for secret_marker in ("api_key", "API_KEY", "secret", "SECRET"):
+        assert secret_marker not in str(body)
+
+
+def test_health_reports_degraded_when_index_unavailable(client, monkeypatch):
+    def _boom(chunker):
+        raise RuntimeError("collection not found")
+
+    monkeypatch.setattr(api_module, "load_collection", _boom)
+    resp = client.get("/health")
+    body = resp.json()
+    assert body["status"] == "degraded"
+    assert body["n_chunks_structured"] == 0
 
 
 # --- auth ---

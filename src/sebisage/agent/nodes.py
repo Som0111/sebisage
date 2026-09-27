@@ -1,5 +1,8 @@
 """Router, rag, web_search, refuse, rewrite_followup nodes."""
 
+import time
+from functools import wraps
+
 from ddgs import DDGS
 from ddgs.exceptions import DDGSException
 
@@ -13,13 +16,34 @@ from sebisage.generate.prompts import (
     REWRITE_FOLLOWUP_PROMPT,
     ROUTER_CLASSIFIER_PROMPT,
     WEB_ANSWER_PROMPT,
+    WEB_ANSWER_PROMPT_FETCHED,
 )
+from sebisage.retrieve.web_cache import fetch_sebi_content
 
 # Cheap, free first stage: obvious "ask about something the index can't have"
 # keywords route straight to web search before spending a retrieval call.
 _RECENT_KEYWORDS = ["latest", "recent circular", "new circular", "new rule", "this year", "2026", "2027"]
 
 
+def _timed(name: str):
+    """Records this node's own wall-clock time into state["timings"][name].
+    Merged across nodes by AgentState's timings reducer (see state.py) rather
+    than each node's return replacing the whole dict."""
+
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            t0 = time.perf_counter()
+            result = fn(*args, **kwargs)
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            return {**result, "timings": {name: round(elapsed_ms, 1)}}
+
+        return wrapper
+
+    return decorator
+
+
+@_timed("rewrite_followup")
 def rewrite_followup(state: AgentState, llm_client: LLMClient | None = None) -> dict:
     """Rewrites the latest question into a standalone one using the last MEMORY_TURNS turns.
     Unchanged (and no LLM call) if there is no prior conversation."""
@@ -37,8 +61,10 @@ def rewrite_followup(state: AgentState, llm_client: LLMClient | None = None) -> 
     return {"standalone_question": standalone}
 
 
+@_timed("router")
 def router(state: AgentState, llm_client: LLMClient | None = None) -> dict:
-    """Rules first (free), then retrieval confidence, then an LLM classifier only when unsure."""
+    """Rules first (free), then retrieval confidence, then an LLM classifier only when unsure.
+    Timing includes the retrieval_context() call inside this node."""
     question = state["standalone_question"]
     lower = question.lower()
 
@@ -61,8 +87,12 @@ def router(state: AgentState, llm_client: LLMClient | None = None) -> dict:
     return {"route": route, "route_reason": reason, "retrieved": context_chunks}
 
 
+@_timed("rag")
 def rag(state: AgentState, llm_client: LLMClient | None = None) -> dict:
-    """The Phase 4 grounded answer chain, reusing the router's retrieval when available."""
+    """The Phase 4 grounded answer chain, reusing the router's retrieval when available.
+    Timing excludes retrieval when `state["retrieved"]` is already populated (the
+    normal path - retrieve_context() only runs again inside run_answer_chain if
+    context_chunks is falsy)."""
     question = state["standalone_question"]
     result = run_answer_chain(question, llm_client=llm_client, context_chunks=state.get("retrieved") or None)
     return {
@@ -74,6 +104,7 @@ def rag(state: AgentState, llm_client: LLMClient | None = None) -> dict:
     }
 
 
+@_timed("grounding_check")
 def grounding_check(state: AgentState) -> dict:
     """Pass-through checkpoint node: rag() already ran check_grounding (with its own
     retry) internally, so this node exists only as a distinct graph/trace point
@@ -83,15 +114,32 @@ def grounding_check(state: AgentState) -> dict:
 
 def web_search(state: AgentState) -> dict:
     """DuckDuckGo search restricted to sebi.gov.in, top 5 results. Never raises -
-    an empty result list on rate-limit/no-result is handled by answer_from_web."""
+    an empty result list on rate-limit/no-result is handled by answer_from_web.
+
+    Also attempts to fetch the full official content of the first result whose
+    URL is on an approved SEBI domain (fetch_sebi_content returns None on any
+    failure), so answer_from_web can answer from real page/PDF text instead of
+    just the search snippet when possible."""
     question = state["standalone_question"]
     try:
         results = DDGS().text(f"site:sebi.gov.in {question}", max_results=5)
     except DDGSException:
         results = []
-    return {"web_results": results}
+
+    fetched_text = None
+    fetched_url = None
+    for r in results:
+        url = r.get("href", "")
+        text = fetch_sebi_content(url)
+        if text:
+            fetched_text = text
+            fetched_url = url
+            break
+
+    return {"web_results": results, "fetched_text": fetched_text, "fetched_url": fetched_url}
 
 
+@_timed("answer_from_web")
 def answer_from_web(state: AgentState, llm_client: LLMClient | None = None) -> dict:
     results = state.get("web_results") or []
     if not results:
@@ -101,13 +149,26 @@ def answer_from_web(state: AgentState, llm_client: LLMClient | None = None) -> d
             "grounded": True,
             "grounding_flags": [],
             "usage_total": {},
+            "source_type": "search_snippets",
         }
 
-    formatted = "\n\n".join(f"[{i}] {r.get('title', '')}\nURL: {r.get('href', '')}\n{r.get('body', '')}" for i, r in enumerate(results, start=1))
-    prompt = WEB_ANSWER_PROMPT.format(results=formatted, question=state["standalone_question"])
-
+    fetched_text = state.get("fetched_text")
+    fetched_url = state.get("fetched_url")
     llm_client = llm_client or LLMClient()
-    result = llm_client.invoke([{"role": "user", "content": prompt}], prompt_version="web-answer-v1")
+
+    if fetched_text:
+        source_type = "official_content"
+        citations = [fetched_url]
+        prompt = WEB_ANSWER_PROMPT_FETCHED.format(url=fetched_url, content=fetched_text, question=state["standalone_question"])
+        prompt_version = "web-answer-fetched-v1"
+    else:
+        source_type = "search_snippets"
+        citations = [r.get("href", "") for r in results]
+        formatted = "\n\n".join(f"[{i}] {r.get('title', '')}\nURL: {r.get('href', '')}\n{r.get('body', '')}" for i, r in enumerate(results, start=1))
+        prompt = WEB_ANSWER_PROMPT.format(results=formatted, question=state["standalone_question"])
+        prompt_version = "web-answer-v1"
+
+    result = llm_client.invoke([{"role": "user", "content": prompt}], prompt_version=prompt_version)
     if result.error:
         return {
             "answer": None,
@@ -115,15 +176,16 @@ def answer_from_web(state: AgentState, llm_client: LLMClient | None = None) -> d
             "grounded": False,
             "grounding_flags": [],
             "usage_total": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
+            "source_type": source_type,
         }
 
-    citations = [r.get("href", "") for r in results]
     return {
         "answer": result.text,
         "citations": citations,
         "grounded": True,
         "grounding_flags": [],
         "usage_total": {"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
+        "source_type": source_type,
     }
 
 

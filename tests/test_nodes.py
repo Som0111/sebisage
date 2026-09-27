@@ -25,7 +25,8 @@ class FakeLLMClient:
 def test_rewrite_followup_no_history_is_unchanged_and_skips_llm():
     state = {"question": "What is Regulation 30?", "messages": []}
     out = nodes.rewrite_followup(state, llm_client="should never be used")
-    assert out == {"standalone_question": "What is Regulation 30?"}
+    assert out["standalone_question"] == "What is Regulation 30?"
+    assert "rewrite_followup" in out["timings"]
 
 
 def test_rewrite_followup_with_history_calls_llm_and_rewrites():
@@ -104,6 +105,28 @@ def test_rag_delegates_to_answer_chain_and_reuses_retrieval(monkeypatch):
     assert out["answer"] == "text [1]"
     assert out["grounded"] is True
     assert captured["context_chunks"] == CONTEXT  # reused, not re-retrieved
+    assert "rag" in out["timings"]
+
+
+# --- per-node timings ---
+
+
+def test_router_records_timing(monkeypatch):
+    monkeypatch.setattr(nodes, "retrieve_context", lambda q: [])
+    client = FakeLLMClient("regulation")
+    out = nodes.router({"standalone_question": "some question"}, llm_client=client)
+    assert "router" in out["timings"]
+    assert out["timings"]["router"] >= 0
+
+
+def test_answer_from_web_records_timing():
+    out = nodes.answer_from_web({"standalone_question": "q", "web_results": []})
+    assert "answer_from_web" in out["timings"]
+
+
+def test_grounding_check_records_timing():
+    out = nodes.grounding_check({})
+    assert "grounding_check" in out["timings"]
 
 
 # --- web_search / answer_from_web ---

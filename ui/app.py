@@ -90,7 +90,18 @@ def render_badges(meta: dict):
     route = meta.get("route", "unknown")
     grounded = meta.get("grounded")
     badge = "✅ grounded" if grounded else ("⚠️ ungrounded" if grounded is not None else "")
-    st.caption(f"**route:** `{route}` &nbsp;&nbsp; {badge}")
+    parts = [f"**route:** `{route}`", badge]
+
+    timings = meta.get("timings") or {}
+    retrieval_ms = timings.get("router")
+    if retrieval_ms is not None:
+        parts.append(f"retrieval: {retrieval_ms / 1000:.1f}s")
+
+    latency_ms = meta.get("latency_ms")
+    if latency_ms is not None:
+        parts.append(f"e2e: {latency_ms / 1000:.1f}s")
+
+    st.caption(" &nbsp;&nbsp; ".join(p for p in parts if p))
 
 
 def main():
@@ -98,7 +109,7 @@ def main():
         "> **Educational project — not legal or investment advice.** "
         "SebiSage answers questions about Indian SEBI securities regulations with clause-level citations."
     )
-    st.markdown(" ".join(f"`{r}`" for r in COVERED_REGULATIONS))
+    st.markdown(" | ".join(f"`{r}`" for r in COVERED_REGULATIONS))
 
     if "session_id" not in st.session_state:
         st.session_state.session_id = str(uuid.uuid4())

@@ -2,7 +2,7 @@
 
 from sentence_transformers import CrossEncoder
 
-from sebisage.config import K_FINAL, RERANKER_MODEL
+from sebisage.config import K_FINAL, RERANKER_BATCH_SIZE, RERANKER_MODEL
 
 _model: CrossEncoder | None = None
 
@@ -24,7 +24,7 @@ def rerank(query: str, candidates: list[dict], k: int = K_FINAL) -> list[dict]:
         return []
     model = _get_model()
     pairs = [(query, c["text"]) for c in candidates]
-    scores = model.predict(pairs)
+    scores = model.predict(pairs, batch_size=RERANKER_BATCH_SIZE)
     scored = [{**c, "rerank_score": float(s)} for c, s in zip(candidates, scores, strict=True)]
     scored.sort(key=lambda c: c["rerank_score"], reverse=True)
     return scored[:k]

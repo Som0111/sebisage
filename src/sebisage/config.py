@@ -1,8 +1,22 @@
 """All paths, model names, thresholds and numeric settings for SebiSage."""
 
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _read_app_version() -> str:
+    """Reads the version from pyproject.toml so it never drifts from a
+    duplicated constant here."""
+    try:
+        with (ROOT / "pyproject.toml").open("rb") as f:
+            return tomllib.load(f)["project"]["version"]
+    except (OSError, KeyError):
+        return "unknown"
+
+
+APP_VERSION = _read_app_version()
 
 # --- Paths ---
 DATA_DIR = ROOT / "data"
@@ -14,6 +28,7 @@ CHROMA_DIR = STORAGE_DIR / "chroma"
 REPORTS_DIR = ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 CACHE_DIR = ROOT / ".cache" / "llm"
+WEB_CACHE_DIR = ROOT / ".cache" / "web"
 
 # --- Models ---
 # Chosen at Phase 0.2 after checking live Gemini free-tier availability.
@@ -22,6 +37,10 @@ CACHE_DIR = ROOT / ".cache" / "llm"
 GEMINI_MODEL = "gemini-flash-lite-latest"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+# Measured on CPU over 20 (query, chunk) pairs (see reports/reranker_latency_experiment.md):
+# no explicit batch_size ~6060ms median, batch_size=8 ~2940ms, batch_size=16 ~5360ms.
+# 8 is fastest for this candidate-set size; same model/inputs, so retrieval quality is unaffected.
+RERANKER_BATCH_SIZE = 8
 
 # --- Chunking ---
 MAX_CHUNK_TOKENS = 400
@@ -36,6 +55,18 @@ RRF_K = 60
 K_FUSED = 20
 K_FINAL = 5
 REFUSE_THRESHOLD = 3.5  # set at Phase 5.3 from dev-set top rerank scores (see HUMAN_GUIDE.md)
+
+# --- Recent/live web route: fetching official SEBI content instead of snippets only ---
+SEBI_ALLOWED_DOMAINS: list[str] = [
+    "sebi.gov.in",
+    "www.sebi.gov.in",
+]
+WEB_CACHE_TTL_HOURS = 48
+WEB_FETCH_TIMEOUT_S = 10
+WEB_FETCH_MAX_BYTES = 512_000
+WEB_FETCH_PDF_MAX_PAGES = 20
+WEB_FETCH_MAX_CHARS = 6000
+WEB_FETCH_USER_AGENT = "SebiSage-research-bot/1.0 (educational project)"
 
 # --- Eval ---
 EVAL_SPLIT_SEED = 42
@@ -59,12 +90,12 @@ API_PORT = 8000  # matches Phase 9's Docker layout (API 8000, UI 7860)
 UI_PORT = 7860
 
 # --- UI ---
-COVERED_REGULATIONS = ["LODR", "PIT", "SAST", "IA", "RA"]
+COVERED_REGULATIONS = ["LODR 2015", "PIT 2015", "SAST 2011", "IA 2013", "RA 2014"]
 EXAMPLE_QUESTIONS = [
     "When must a listed company disclose a material event?",
     "What is a 'connected person' under the PIT Regulations?",
     "At what shareholding threshold must an acquirer make an open offer?",
-    "For how long must an investment adviser preserve its records?",
+    "What happens if a listed entity fails to pay a fine imposed on it by the stock exchange?",
     "What must a research analyst maintain records of?",
     "What is the current repo rate set by the Reserve Bank of India?",
 ]

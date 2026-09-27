@@ -65,7 +65,20 @@ Search results:
 
 Question: {question}
 
-Answer, ending with the line "Based on search snippets; verify on sebi.gov.in.":"""
+Answer, ending with the line "Based on search snippets only; verify on sebi.gov.in.":"""
+
+WEB_ANSWER_PROMPT_FETCHED = """You are SebiSage, an educational assistant for SEBI regulations.
+The following text was retrieved directly from the official SEBI website ({url}).
+Answer the question using ONLY this content. Cite the source URL.
+At the end, add: "Source: official content from {url} - verify on sebi.gov.in."
+Do not claim legal authority. This is educational only.
+
+Content:
+{content}
+
+Question: {question}
+
+Answer:"""
 
 REFUSE_MESSAGE = """I can only answer questions about five SEBI regulations: Listing \
 Obligations and Disclosure Requirements (LODR), Prohibition of Insider Trading (PIT), \

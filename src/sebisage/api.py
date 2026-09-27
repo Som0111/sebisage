@@ -20,6 +20,7 @@ from sebisage import tracing
 from sebisage.agent.graph import compiled_graph
 from sebisage.config import (
     API_KEY_HEADER,
+    APP_VERSION,
     CHROMA_DIR,
     COST_PER_1K_INPUT,
     COST_PER_1K_OUTPUT,
@@ -30,9 +31,11 @@ from sebisage.config import (
     REPORTS_DIR,
     RERANKER_MODEL,
     SESSION_TTL_S,
+    STORAGE_DIR,
 )
 from sebisage.generate.llm import get_cache_stats
 from sebisage.guardrails import check_input
+from sebisage.index.dense import load_collection
 
 app = FastAPI(title="SebiSage API")
 
@@ -135,6 +138,8 @@ class AskResponse(BaseModel):
     citations: list[Citation]
     route: str
     grounded: bool
+    source_type: str | None = None
+    timings: dict[str, float] = {}
     usage: dict
     estimated_cost_usd: float
     latency_ms: float
@@ -172,11 +177,24 @@ def health() -> dict:
         files = [f.stat().st_mtime for f in CHROMA_DIR.rglob("*") if f.is_file()]
         if files:
             build_mtime = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(max(files)))
+
+    try:
+        n_chunks_structured = load_collection("structured").count()
+        status = "ok"
+    except Exception:  # noqa: BLE001 - any Chroma/collection failure means the app can't serve retrieval
+        n_chunks_structured = 0
+        status = "degraded"
+
     return {
-        "status": "ok",
-        "generation_model": GEMINI_MODEL,
+        "status": status,
+        "app_version": APP_VERSION,
+        "llm_model": GEMINI_MODEL,
         "embedding_model": EMBEDDING_MODEL,
         "reranker_model": RERANKER_MODEL,
+        "index_type": "chroma + bm25",
+        "n_chunks_structured": n_chunks_structured,
+        "bm25_index_present": (STORAGE_DIR / "bm25_structured.pkl").exists(),
+        "demo_mode": False,  # DEMO_MODE was investigated and not implemented - see docs/DEMO_SCRIPT.md
         "index_stats": index_stats,
         "index_build_date": build_mtime,
     }
@@ -191,6 +209,8 @@ def ask(payload: AskRequest, request: Request) -> AskResponse:
         citations=[Citation(**c) for c in _citations_with_metadata(result.get("citations") or [])],
         route=result.get("route", "unknown"),
         grounded=result.get("grounded", False),
+        source_type=result.get("source_type"),
+        timings=result.get("timings") or {},
         usage=usage,
         estimated_cost_usd=_estimate_cost(usage),
         latency_ms=latency_ms,
@@ -207,7 +227,7 @@ def ask_stream(payload: AskRequest, request: Request) -> EventSourceResponse:
     word chunks. This is not raw token-level provider streaming: it can't be,
     without either streaming an answer that might get silently replaced by a
     grounding retry, or losing the grounding check entirely."""
-    result, trace_id, session_id, _latency_ms = _run_ask(payload, request)
+    result, trace_id, session_id, latency_ms = _run_ask(payload, request)
     citations = _citations_with_metadata(result.get("citations") or [])
     answer_text = result.get("answer") or ""
 
@@ -216,7 +236,19 @@ def ask_stream(payload: AskRequest, request: Request) -> EventSourceResponse:
         for word in answer_text.split(" "):
             if word:
                 yield {"event": "token", "data": word + " "}
-        yield {"event": "citations", "data": json.dumps({"citations": citations, "grounded": result.get("grounded", False), "session_id": session_id})}
+        yield {
+            "event": "citations",
+            "data": json.dumps(
+                {
+                    "citations": citations,
+                    "grounded": result.get("grounded", False),
+                    "source_type": result.get("source_type"),
+                    "session_id": session_id,
+                    "latency_ms": round(latency_ms, 1),
+                    "timings": result.get("timings") or {},
+                }
+            ),
+        }
 
     return EventSourceResponse(event_generator())
 

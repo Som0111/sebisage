@@ -41,6 +41,7 @@ def test_regulation_route_end_to_end(monkeypatch):
 def test_recent_route_end_to_end(monkeypatch):
     _patch_llm_client(monkeypatch, "Based on the recent circular... Based on search snippets; verify on sebi.gov.in.")
     monkeypatch.setattr(nodes, "DDGS", lambda: type("D", (), {"text": lambda self, *a, **k: [{"title": "t", "href": "https://sebi.gov.in/x", "body": "s"}]})())
+    monkeypatch.setattr(nodes, "fetch_sebi_content", lambda url: None)  # no real network call; exercises the snippet fallback
 
     result = compiled_graph().invoke({"question": "What is the latest circular on this?", "messages": []})
 

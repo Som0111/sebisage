@@ -66,6 +66,8 @@ graph TD;
 
 Retrieval pipeline (the `rag` node): structure-aware chunking → dense (Chroma + `bge-small-en-v1.5`) and BM25 retrieval fused via Reciprocal Rank Fusion → cross-encoder rerank (`ms-marco-MiniLM-L-6-v2`) → citation-forcing generation → grounding validator (flags uncited/hallucinated claims, one auto-retry).
 
+Live/recent pipeline (the `web_search` → `answer_from_web` nodes, for questions the router sends outside the indexed regulations, e.g. "latest circular"): `site:sebi.gov.in` DuckDuckGo search → take the first result URL on an approved SEBI domain (`sebi.gov.in`, `www.sebi.gov.in` — anything else is rejected before any fetch) → check a TTL disk cache (48h) for that URL → on a miss, fetch the page/PDF (10s timeout, capped download size, redirects followed only to approved domains) and extract its text (`pymupdf` for PDF, stdlib `html.parser` for HTML) → answer from that real content, citing the URL. If fetching fails at any step (timeout, disallowed redirect, oversized download, extraction error, or no SEBI-domain result at all), it falls back to answering from the search snippets alone, same as before. The API/UI can tell the two apart via `source_type`: `official_content` vs `search_snippets`.
+
 ## Results
 
 All numbers below are copied directly from `reports/` — see `reports/EVAL_REPORT.md` and `reports/retrieval_ablation_dev.json` for the source data.
@@ -163,13 +165,21 @@ docker build -t sebisage .
 docker run -p 8000:8000 -p 7860:7860 --env-file .env sebisage
 ```
 
+Either way, open http://localhost:7860 once both processes are up. There's no
+"retrieval-only demo mode" that skips the Gemini key — investigated and skipped (see
+`docs/DEMO_SCRIPT.md`), since the LLM call path is threaded through 4 separate call
+sites (`rewrite_followup`, the router's LLM classifier, `answer_from_web`, and the RAG
+answer chain with its grounding retry), each with its own handling of the response —
+stubbing generation cleanly would need refactoring the answer chain, not a flag.
+A real (free-tier) `GEMINI_API_KEY` is required to see actual answers.
+
 ## API reference
 
 All endpoints except `/health` require an `X-API-Key` header matching `SEBISAGE_API_KEY`.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/health` | Liveness + baked-in index stats. No auth. |
+| GET | `/health` | Liveness, app version, model names, index stats (chunk count, BM25 presence), `demo_mode`. No auth, no secrets. |
 | POST | `/ask` | Ask a question, get the full grounded answer with citations in one response. |
 | POST | `/ask/stream` | Same, streamed via SSE (full answer is computed first so grounding-retry can run, then streamed token by token — not raw token streaming). |
 | GET | `/sources/{chunk_id}` | Fetch the full text of a cited chunk. |
@@ -177,7 +187,7 @@ All endpoints except `/health` require an `X-API-Key` header matching `SEBISAGE_
 
 ## Honest limitations
 
-- 5 regulations indexed (LODR, PIT, SAST, IA, RA); circulars and master circulars are not indexed, only reachable via snippet-based web search restricted to sebi.gov.in.
+- 5 regulations indexed (LODR, PIT, SAST, IA, RA); circulars and master circulars are not indexed, only reachable via the live sebi.gov.in web route (fetched official content when available, snippet-only otherwise — see above). That route is still weaker than the indexed RAG path: no structure-aware chunking, no reranking, and it's limited to whatever content the first approved-domain search result yields.
 - Small test set: 23 questions total, 21 answerable (`reports/retrieval_test.json`).
 - Evaluation questions were labelled by a single annotator.
 - One PIT regulation (regulation 14) is missed by the structure-aware chunker due to a nested-bracket amendment pattern the regex doesn't handle — a known, accepted gap, not silently swallowed.
