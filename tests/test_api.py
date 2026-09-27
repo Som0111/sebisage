@@ -51,29 +51,43 @@ def _mock_regulation_route(monkeypatch):
 # --- /health ---
 
 
-def test_health_requires_no_api_key(client):
+class _FakeCollection:
+    def count(self) -> int:
+        return 1900
+
+
+def test_health_requires_no_api_key(client, monkeypatch, tmp_path):
+    # Mocked rather than relying on a real built index (the CI "test" job never
+    # builds one - only the separate "retrieval-gate" job does), so this test is
+    # deterministic regardless of local index/storage state.
+    monkeypatch.setattr(api_module, "load_collection", lambda chunker: _FakeCollection())
+    monkeypatch.setattr(api_module, "STORAGE_DIR", tmp_path)
+    (tmp_path / "bm25_structured.pkl").write_bytes(b"")
+
     resp = client.get("/health")
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
     assert "llm_model" in body
     assert body["index_type"] == "chroma + bm25"
-    assert body["n_chunks_structured"] > 0
+    assert body["n_chunks_structured"] == 1900
     assert body["bm25_index_present"] is True
     assert body["demo_mode"] is False
     for secret_marker in ("api_key", "API_KEY", "secret", "SECRET"):
         assert secret_marker not in str(body)
 
 
-def test_health_reports_degraded_when_index_unavailable(client, monkeypatch):
+def test_health_reports_degraded_when_index_unavailable(client, monkeypatch, tmp_path):
     def _boom(chunker):
         raise RuntimeError("collection not found")
 
     monkeypatch.setattr(api_module, "load_collection", _boom)
+    monkeypatch.setattr(api_module, "STORAGE_DIR", tmp_path)  # no bm25_structured.pkl written here
     resp = client.get("/health")
     body = resp.json()
     assert body["status"] == "degraded"
     assert body["n_chunks_structured"] == 0
+    assert body["bm25_index_present"] is False
 
 
 # --- auth ---
