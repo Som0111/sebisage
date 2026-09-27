@@ -124,11 +124,11 @@ def main() -> None:
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / "e2e_test.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
 
-    _write_markdown_report(report)
+    _write_markdown_report(report, n_answerable_test=retrieval_test.get("n_answerable"))
     print(f"router_accuracy_test={report['router_accuracy_test']} grounding_pass_rate_test={grounding_pass_rate} evalforge_status={evalforge_report.get('status')}")
 
 
-def _write_markdown_report(report: dict) -> None:
+def _write_markdown_report(report: dict, n_answerable_test: int | None = None) -> None:
     lines = ["# SebiSage End-to-End Evaluation Report (test set)\n"]
     lines.append(f"n test questions: {report['n_test']}\n")
 
@@ -161,6 +161,27 @@ def _write_markdown_report(report: dict) -> None:
     lines.append(f"- Mean tokens in/out: {report['mean_input_tokens']} / {report['mean_output_tokens']}")
     lines.append(f"- Mean estimated cost per query: ${report['mean_cost_usd_estimate']}")
     lines.append(f"- LLM disk-cache hit rate (this run): {report['cache_hit_rate_this_run']}")
+
+    lines.append("\n## Limitations of This Evaluation\n")
+    lines.append(
+        f"- **Small test set:** n={n_answerable_test if n_answerable_test is not None else report['n_test']} answerable questions. "
+        "Bootstrap 95% CIs are wide (see reports/retrieval_bootstrap_ci.json). Results are sufficient for comparing "
+        "retrieval configurations, not for strong population-level claims."
+    )
+    lines.append(
+        "- **Single annotator:** No inter-annotator agreement was measured. Question quality and gold labels reflect "
+        "one person's reading of the regulation text."
+    )
+    lines.append(
+        "- **Hit criterion:** A hit is any retrieved chunk from the same source PDF whose page range overlaps the "
+        "gold answer's page range. This does not verify that the exact correct sub-regulation or clause was "
+        "retrieved within that overlapping range."
+    )
+    lines.append("- **Regulation coverage:** 5 SEBI regulations only. Circulars and master circulars are not indexed.")
+    lines.append(
+        "- **Not legal correctness:** Evaluation measures retrieval and grounding, not whether the answer is "
+        "legally correct or complete."
+    )
 
     (REPORTS_DIR / "EVAL_REPORT.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 

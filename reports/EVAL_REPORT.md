@@ -36,3 +36,11 @@ n test questions: 23
 - Mean tokens in/out: 898.6 / 63.8
 - Mean estimated cost per query: $0.00032
 - LLM disk-cache hit rate (this run): 0.0
+
+## Limitations of This Evaluation
+
+- **Small test set:** n=21 answerable questions. Bootstrap 95% CIs are wide (see reports/retrieval_bootstrap_ci.json). Results are sufficient for comparing retrieval configurations, not for strong population-level claims.
+- **Single annotator:** No inter-annotator agreement was measured. Question quality and gold labels reflect one person's reading of the regulation text.
+- **Hit criterion:** A hit is any retrieved chunk from the same source PDF whose page range overlaps the gold answer's page range. This does not verify that the exact correct sub-regulation or clause was retrieved within that overlapping range.
+- **Regulation coverage:** 5 SEBI regulations only. Circulars and master circulars are not indexed.
+- **Not legal correctness:** Evaluation measures retrieval and grounding, not whether the answer is legally correct or complete.

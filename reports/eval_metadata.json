@@ -1,0 +1,20 @@
+{
+  "n_dev": 34,
+  "n_test": 23,
+  "n_answerable_dev": 31,
+  "n_unanswerable_dev": 3,
+  "n_answerable_test": 21,
+  "n_unanswerable_test": 2,
+  "split_seed": 42,
+  "split_ratio": "60% dev / 40% test (approximate), stratified by question type (scripts/split_eval_questions.py)",
+  "evaluation_criterion": "Hit = any retrieved chunk from the same source PDF whose page range overlaps the gold chunk's page range (src/sebisage/eval/retrieval_eval.py::overlaps) -- NOT a reg_no string match. Page overlap is used because the fixed-size baseline chunker never sets reg_no, and page overlap is stricter anyway (requires the specific sub-regulation/clause, not just any chunk from the right regulation).",
+  "date_generated": "2026-09-27",
+  "annotator_note": "Questions human-reviewed in Phase 3 via data/eval/review.html (checkpoint H3). Single annotator. 3 of 60 drafted questions were dropped in review (q015, q024, q040); 57 verified questions remain, split into dev (34) / test (23).",
+  "limitations": [
+    "Small test set (n_answerable_test=21) -- bootstrap CIs are wide; treat as rough uncertainty estimates, not statistically precise CIs",
+    "Single annotator -- no inter-annotator agreement measure",
+    "Hit criterion is page-range overlap within the same source file, not reg_no match; still does not distinguish which specific clause within an overlapping page range was retrieved",
+    "Only 5 regulations indexed (LODR, PIT, SAST, IA, RA); circulars and master circulars are not indexed",
+    "Not a legal correctness evaluation -- measures retrieval and citation grounding, not whether the answer is legally correct or complete"
+  ]
+}

@@ -8,6 +8,27 @@ Agentic RAG over five Indian SEBI securities regulations — LODR, PIT, SAST, IA
 
 Built and verified end-to-end locally (Docker build/run, full test suite, CI). **Not currently deployed to a public URL** — the original plan (Hugging Face Spaces free tier) turned out to require a paid plan on the account used to build this, and the fallback (Oracle Cloud Always Free) needs a card on file for identity verification, which wasn't available. Real memory testing under load (~793.5MiB peak, see `HUMAN_GUIDE.md` Phase 9) shows the app is well within reach of most free tiers once one is accessible. The image itself is 3.28GB (down from 3.6GB after moving model downloads to container startup and trimming an offline-only dependency) — getting it under 1GB would need swapping out torch/Chroma/Streamlit for lighter alternatives, a real architecture change rather than a packaging tweak, so it wasn't pursued. The image is Docker-ready and CI-verified, just not hosted. See [Run locally](#run-locally) to try it yourself.
 
+## Key results
+
+| Metric | Value |
+|---|---|
+| Recall@5 (test, config E, n=21 answerable questions) | 90.5% |
+| MRR@10 (test, n=21 answerable questions) | 0.747 |
+| Grounding pass rate (test, n=21 regulation-routed answers) | 100% |
+| Router accuracy (test, n=23 total questions) | 100% |
+| Mean estimated cost/query | $0.00032 |
+| Retrieval latency p50 (config E, **retrieval only**) | ~4.21s |
+| End-to-end latency p50 (**routing + generation + grounding**) | ~35.4s |
+
+Retrieval and end-to-end latency are two different numbers, not a typo — see [Latency trade-off](#latency-trade-off).
+
+## Why this project is technically interesting
+
+- Structure-aware legal chunking (regulation/sub-regulation/clause boundaries) instead of fixed-size windows.
+- Dense + BM25 fused via Reciprocal Rank Fusion, then cross-encoder reranking.
+- Grounded generation: a citation validator rejects uncited sentences and hallucinated regulation numbers.
+- Evaluation-first development: dev/test split, ablation across 5 configs, CI retrieval-regression gate.
+
 ## Architecture
 
 ```mermaid
@@ -59,26 +80,38 @@ All numbers below are copied directly from `reports/` — see `reports/EVAL_REPO
 | D | structured | hybrid (RRF) | no | 45.2% | 87.1% | 0.616 | 125.3ms |
 | **E** | **structured** | **hybrid (RRF)** | **yes** | **64.5%** | **87.1%** | **0.762** | 4059.7ms |
 
-Config E (structured chunking + hybrid RRF + cross-encoder rerank) was selected as the production config on dev MRR@10, then run once on test:
+Config E (structured chunking + hybrid RRF + cross-encoder rerank) was selected as the production config on dev MRR@10, then run once on test. **n=21 answerable questions** (2 of the 23 test questions are out-of-scope and excluded from retrieval metrics — see `reports/retrieval_test.json::n_answerable`):
 
-| Metric | Test (n=23) |
+| Metric | Test (n=21 answerable) |
 |---|---|
 | Recall@1 | 61.9% |
 | Recall@3 | 85.7% |
 | Recall@5 | 90.5% |
 | MRR@10 | 0.747 |
+| Retrieval latency p50 / p95 (**retrieval only**) | 4.21s / 5.25s |
 
-### End-to-end (test set, n=23)
+### End-to-end (test set, n=23 total questions)
 
 | Metric | Value |
 |---|---|
-| Router accuracy | 100% |
+| Router accuracy (n=23) | 100% |
 | Refusal precision / recall (n=2 out-of-scope) | 100% / 100% |
 | Grounding pass rate (regulation-routed, n=21) | 100% |
 | Mean tokens in / out | 898.6 / 63.8 |
 | Mean estimated cost per query | $0.00032 |
+| **End-to-end** latency p50 / p95 (routing + generation + grounding) | 35.4s / 79.8s |
 
-Reranking is real cross-encoder cost, not a synthetic number — it scales with candidate-set size and is the dominant latency cost in config E (4.06s p50 vs 62-125ms for the non-reranked configs). Worth it here for the retrieval-quality gain, but the tradeoff is explicit.
+### Ablation findings (dev)
+
+- Structured dense retrieval alone (config B, MRR@10 0.756) outperformed hybrid RRF without reranking (config D, MRR@10 0.616) — BM25's weaker rankings pulled the fused blend down below dense-only.
+- Reranking (config E, MRR@10 0.762) gave the best dev MRR, but only by 0.006 over dense-only (B), at a ~65x latency cost (4.06s vs 62ms p50 on dev).
+- The production config (E) was chosen mechanically by dev MRR and evaluated once on test — hybrid RRF was not independently the winning component here; reranking is what pushed E ahead of dense-only.
+
+### Latency trade-off
+
+- Retrieval p50 (config E, test): **~4.21s**, dominated by cross-encoder reranking over the fused top-20 candidates.
+- End-to-end p50 (test): **~35.4s**, includes LLM generation, routing, and grounding validation.
+- Reranking is the retrieval-side bottleneck; LLM generation is the dominant end-to-end cost. This is a known, measured trade-off (see ablation above), not an oversight.
 
 ## Design decisions
 
@@ -144,11 +177,15 @@ All endpoints except `/health` require an `X-API-Key` header matching `SEBISAGE_
 
 ## Honest limitations
 
+- 5 regulations indexed (LODR, PIT, SAST, IA, RA); circulars and master circulars are not indexed, only reachable via snippet-based web search restricted to sebi.gov.in.
+- Small test set: 23 questions total, 21 answerable (`reports/retrieval_test.json`).
+- Evaluation questions were labelled by a single annotator.
 - One PIT regulation (regulation 14) is missed by the structure-aware chunker due to a nested-bracket amendment pattern the regex doesn't handle — a known, accepted gap, not silently swallowed.
-- Reranking (config E) adds ~4s p50 latency versus non-reranked retrieval; this is real cross-encoder cost, not a bug, and was a deliberate quality/latency tradeoff.
+- End-to-end latency (35.4s p50) is dominated by LLM generation, not retrieval (4.21s p50) — see [Latency trade-off](#latency-trade-off).
 - EvalForge's LLM-judge scores are a secondary signal only — EvalForge's own inter-annotator kappa for its judge was low on this eval; rule-based and embedding scores are treated as primary (see `reports/EVAL_REPORT.md`).
 - Not currently deployed to a public URL (see [Status](#status)).
 - Sessions are in-memory only (no persistent chat history across server restarts).
+- Not legal advice — see disclaimer above.
 
 ## Roadmap / future work
 

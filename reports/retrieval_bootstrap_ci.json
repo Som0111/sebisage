@@ -1,0 +1,21 @@
+{
+  "seed": 42,
+  "n_iter": 1000,
+  "n_answerable_test": 21,
+  "note": "95% bootstrap CI (rough uncertainty estimate; small sample, n<25 means wide intervals).",
+  "recall_at_1": {
+    "mean": 0.619,
+    "ci_95_lower": 0.381,
+    "ci_95_upper": 0.8095
+  },
+  "recall_at_5": {
+    "mean": 0.9048,
+    "ci_95_lower": 0.7619,
+    "ci_95_upper": 1.0
+  },
+  "mrr_at_10": {
+    "mean": 0.7468,
+    "ci_95_lower": 0.5913,
+    "ci_95_upper": 0.8849
+  }
+}
